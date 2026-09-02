@@ -2,6 +2,6 @@
 exit;
 ?>
 [vartypes]
-BOOLEAN_TRUE = "true"
-BOOLEAN_FALSE = "false"
-NULL = "null"
+BOOLEAN_TRUE_VALUE = "true"
+BOOLEAN_FALSE_VALUE = "false"
+NULL_VALUE = "null"
