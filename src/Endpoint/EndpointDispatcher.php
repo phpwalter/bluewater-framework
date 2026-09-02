@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Bluewater\Endpoint;
 
+use Bluewater\Config\Config;
 use Bluewater\Container\Container;
 use Bluewater\Http\Request;
 use Bluewater\Http\Response;
@@ -53,7 +54,7 @@ final class EndpointDispatcher
                 }
                 if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
                     $class = $type->getName();
-                    if (is_array($request->body) && class_exists($class) && !$this->container->registered($class)) {
+                    if (is_array($request->body) && str_contains($class, '\\DTO\\')) {
                         $arguments[] = $this->hydrate($class, $request->body);
                         continue;
                     }
@@ -66,7 +67,11 @@ final class EndpointDispatcher
                 }
                 throw new RuntimeException("Unable to bind endpoint parameter {$route->class}::{$route->method}(\${$name}).");
             }
-            return $this->serializers->response($method->invokeArgs($endpoint, $arguments), $request);
+
+            $serializers = $this->container->registered(SerializerRegistry::class)
+                ? $this->container->get(SerializerRegistry::class)
+                : $this->serializers;
+            return $serializers->response($method->invokeArgs($endpoint, $arguments), $request);
         } catch (ValidationException $e) {
             return Response::json(['error' => 'validation_failed', 'fields' => $e->errors], 422);
         }
@@ -93,7 +98,12 @@ final class EndpointDispatcher
             }
             $object = $ref->newInstanceArgs($args);
         }
-        $this->validator->validate($object);
+
+        /** @var Config $config */
+        $config = $this->container->get(Config::class);
+        if ((bool) $config->get('features.VALIDATION', true)) {
+            $this->validator->validate($object);
+        }
         return $object;
     }
 
@@ -101,7 +111,7 @@ final class EndpointDispatcher
     {
         return match ($type) {
             'int' => filter_var($value, FILTER_VALIDATE_INT) !== false ? (int) $value : throw new RuntimeException('Expected integer value.'),
-            'float' => (float) $value,
+            'float' => is_numeric($value) ? (float) $value : throw new RuntimeException('Expected numeric value.'),
             'bool' => filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? throw new RuntimeException('Expected boolean value.'),
             'string' => (string) $value,
             default => $value,
