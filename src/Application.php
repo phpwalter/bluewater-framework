@@ -7,6 +7,7 @@ namespace Bluewater;
 use Bluewater\Config\Config;
 use Bluewater\Container\Container;
 use Bluewater\Endpoint\EndpointDispatcher;
+use Bluewater\Extension\ExtensionManager;
 use Bluewater\Http\Request;
 use Bluewater\Http\Response;
 use Bluewater\Middleware\Pipeline;
@@ -26,10 +27,12 @@ final class Application
         private readonly Router $router,
         private readonly Pipeline $pipeline,
         private readonly EndpointDispatcher $dispatcher,
+        private readonly ExtensionManager $extensions,
     ) {
         $this->container->instance(self::class, $this);
         $this->container->instance(ApplicationDefinition::class, $this->definition);
         $this->container->instance(Config::class, $this->config);
+        $this->container->instance(ExtensionManager::class, $this->extensions);
     }
 
     public function definition(): ApplicationDefinition { return $this->definition; }
@@ -37,12 +40,15 @@ final class Application
     public function config(): Config { return $this->config; }
     public function router(): Router { return $this->router; }
     public function middleware(): Pipeline { return $this->pipeline; }
+    public function extensions(): ExtensionManager { return $this->extensions; }
 
     public function boot(ApplicationBootstrap $bootstrap): void
     {
         if ($this->booted) { return; }
         $bootstrap->register($this);
+        $this->extensions->registerAll($this);
         $this->router->discover();
+        $this->extensions->bootAll($this);
         $bootstrap->boot($this);
         $this->booted = true;
     }
