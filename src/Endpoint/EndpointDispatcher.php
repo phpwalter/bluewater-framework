@@ -99,8 +99,8 @@ final class EndpointDispatcher
                 }
                 if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
                     $class = $type->getName();
-                    if (!class_exists($class)) {
-                        throw new RuntimeException("Endpoint dependency class not found: {$class}");
+                    if (!class_exists($class) && !interface_exists($class)) {
+                        throw new RuntimeException("Endpoint dependency type not found: {$class}");
                     }
                     /** @var class-string $class */
                     if (is_array($request->body) && str_contains($class, '\\DTO\\')) {

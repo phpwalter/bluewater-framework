@@ -33,7 +33,7 @@ final class App1Test extends TestCase
     {
         $this->appRoot = dirname(__DIR__, 2) . '/examples/host/app/app_1';
         putenv('BLUEWATER_APP_BASE=' . dirname($this->appRoot));
-        putenv('BLUEWATER_ENV=development');
+        putenv('BLUEWATER_ENV=testing');
         $this->cleanupRuntime();
     }
 
