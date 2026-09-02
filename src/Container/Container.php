@@ -17,6 +17,7 @@ final class Container implements ContainerInterface
 
     public function bind(string $id, string|callable $concrete): self { $this->bindings[$id] = $concrete; return $this; }
     public function instance(string $id, object $instance): self { $this->instances[$id] = $instance; return $this; }
+    public function registered(string $id): bool { return isset($this->instances[$id]) || isset($this->bindings[$id]); }
 
     public function get(string $id): mixed
     {
@@ -40,7 +41,7 @@ final class Container implements ContainerInterface
         return $ref->newInstanceArgs($args);
     }
 
-    public function has(string $id): bool { return isset($this->instances[$id], $this->bindings[$id]) || class_exists($id); }
+    public function has(string $id): bool { return $this->registered($id) || class_exists($id); }
 }
 
 final class ContainerNotFound extends RuntimeException implements NotFoundExceptionInterface {}
