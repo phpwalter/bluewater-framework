@@ -45,7 +45,20 @@ final class Host
             }
         }
 
-        $config = (new ConfigFactory($this->coreConfigPath, $root . '/config', $root . '/cache'))->create();
+        $runtimeSymbols = [
+            'DS' => DIRECTORY_SEPARATOR,
+            'APP_ROOT' => $root,
+            'CACHE_ROOT' => $root . '/cache',
+            'BLUEWATER' => dirname($this->coreConfigPath),
+            'SITE_ROOT' => dirname(rtrim($this->applicationBase, '/')),
+        ];
+        $config = (new ConfigFactory(
+            $this->coreConfigPath,
+            $root . '/config',
+            $root . '/cache',
+            $runtimeSymbols,
+        ))->create();
+
         $namespace = (string) $config->get(
             'APP_NAMESPACE',
             'Apps\\' . str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name))),
