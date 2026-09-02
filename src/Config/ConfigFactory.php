@@ -1,23 +1,67 @@
 <?php
 
+/**
+ * @file ConfigFactory.php
+ * @path src/Config/ConfigFactory.php
+ * @version 1.0.0
+ * @date 2026-05-20
+ * @author Walter Torres
+ * @copyright Copyright 2026, Bluewater.
+ * @license OSL-3.0
+ * @maintainer ApiForge Team
+ * @status dev
+ *
+ * Loads, validates, resolves, merges, fingerprints, and atomically caches framework and application configuration.
+ */
+
 declare(strict_types=1);
 
 namespace Bluewater\Config;
 
 use RuntimeException;
 
+/**
+ * Builds immutable application configuration from guarded framework and app files.
+ *
+ * Sources are loaded in lexical filename order. Application values override
+ * framework values recursively only when their types agree, and locked keys
+ * cannot change. References are resolved after merge with cycle, unknown-key,
+ * and ambiguity detection. The resolved tree is cached atomically and reused
+ * only while the ordered source fingerprint is unchanged.
+ */
 final class ConfigFactory
 {
+    /** @var non-empty-list<non-empty-string> Keys applications cannot override. */
     private const LOCKED_KEYS = ['BW_VER'];
 
+    /**
+     * Creates a factory without reading sources or cache state.
+     *
+     * @param non-empty-string $coreDir Framework configuration directory.
+     * @param non-empty-string $appDir Application override directory.
+     * @param non-empty-string $cacheDir Writable compiled-cache directory.
+     * @param array<string, scalar|null> $runtime Authoritative runtime symbols
+     *     available to reference resolution but absent from serialized output.
+     */
     public function __construct(
         private readonly string $coreDir,
         private readonly string $appDir,
         private readonly string $cacheDir,
         private readonly array $runtime = [],
         private readonly IniConfigParser $parser = new IniConfigParser(),
-    ) {}
+    ) {
+    }
 
+    /**
+     * Returns current resolved configuration, compiling it when cache is stale.
+     *
+     * Source files and cache state are read. A stale result is validated fully
+     * before an atomic temporary-file rename replaces the cache, so validation
+     * failure leaves the prior cache untouched.
+     *
+     * @throws RuntimeException When sources, overrides, references, cache paths,
+     *     or cache writes violate the configuration contract.
+     */
     public function create(): Config
     {
         $cacheFile = $this->cacheDir . '/config.php';
@@ -41,9 +85,16 @@ final class ConfigFactory
         return new Config($resolved);
     }
 
+    /**
+     * Lists guarded configuration sources in stable lexical order.
+     *
+     * @return list<non-empty-string> Unique file paths; empty when absent.
+     */
     private function files(string $dir): array
     {
-        if (!is_dir($dir)) { return []; }
+        if (!is_dir($dir)) {
+            return [];
+        }
         $files = [
             ...(glob(rtrim($dir, '/') . '/*.ini.php') ?: []),
             ...(glob(rtrim($dir, '/') . '/*.session.php') ?: []),
@@ -53,6 +104,7 @@ final class ConfigFactory
         return $files;
     }
 
+    /** @return array<string, mixed> Recursively merged values from one directory. */
     private function load(string $dir): array
     {
         $result = [];
@@ -62,6 +114,14 @@ final class ConfigFactory
         return $result;
     }
 
+    /**
+     * Merges override leaves recursively while preserving base-only values.
+     *
+     * @param array<string, mixed> $base Lower-precedence values.
+     * @param array<string, mixed> $override Higher-precedence values.
+     *
+     * @return array<string, mixed> Newly composed value tree.
+     */
     private function mergeRecursive(array $base, array $override): array
     {
         foreach ($override as $key => $value) {
@@ -74,6 +134,14 @@ final class ConfigFactory
         return $base;
     }
 
+    /**
+     * Rejects application changes to framework-owned locked keys.
+     *
+     * @param array<string, mixed> $core Framework values.
+     * @param array<string, mixed> $app Application values.
+     *
+     * @throws RuntimeException When an application adds or changes a locked key.
+     */
     private function guardLockedKeys(array $core, array $app): void
     {
         foreach (self::LOCKED_KEYS as $key) {
@@ -85,33 +153,74 @@ final class ConfigFactory
         }
     }
 
+    /**
+     * Rejects overrides whose leaf type differs from the framework value.
+     *
+     * @param array<string, mixed> $core Framework subtree.
+     * @param array<string, mixed> $app Application subtree.
+     * @param string $path Dot-qualified diagnostic path accumulated recursively.
+     *
+     * @throws RuntimeException At the first non-null leaf type mismatch.
+     */
     private function validateOverrideTypes(array $core, array $app, string $path = ''): void
     {
         foreach ($app as $key => $value) {
-            if (!array_key_exists($key, $core)) { continue; }
+            if (!array_key_exists($key, $core)) {
+                continue;
+            }
             $currentPath = $path === '' ? (string) $key : $path . '.' . $key;
             if (is_array($value) && is_array($core[$key])) {
                 $this->validateOverrideTypes($core[$key], $value, $currentPath);
                 continue;
             }
             if ($core[$key] !== null && get_debug_type($core[$key]) !== get_debug_type($value)) {
-                throw new RuntimeException("Configuration override type mismatch at {$currentPath}: expected " . get_debug_type($core[$key]) . ', got ' . get_debug_type($value) . '.');
+                throw new RuntimeException(
+                    "Configuration override type mismatch at {$currentPath}: expected "
+                    . get_debug_type($core[$key])
+                    . ', got '
+                    . get_debug_type($value)
+                    . '.',
+                );
             }
         }
     }
 
+    /**
+     * Finds the first exact key using depth-first insertion order.
+     *
+     * @param array<string, mixed> $values Configuration tree.
+     * @param non-empty-string $needle Exact key to locate.
+     *
+     * @return array{0: bool, 1: mixed} Presence flag and matched value.
+     */
     private function findKey(array $values, string $needle): array
     {
         foreach ($values as $key => $value) {
-            if ((string) $key === $needle) { return [true, $value]; }
+            if ((string) $key === $needle) {
+                return [true, $value];
+            }
             if (is_array($value)) {
                 $found = $this->findKey($value, $needle);
-                if ($found[0]) { return $found; }
+                if ($found[0]) {
+                    return $found;
+                }
             }
         }
         return [false, null];
     }
 
+    /**
+     * Resolves `{key}` references against merged values and runtime symbols.
+     *
+     * Exact flattened keys take precedence; a leaf-name reference is accepted
+     * only when unique. Circular, unknown, and ambiguous references fail.
+     *
+     * @param array<string, mixed> $values Merged configuration tree.
+     *
+     * @return array<string, mixed> Tree with scalar references substituted.
+     *
+     * @throws RuntimeException On circular, unknown, or ambiguous references.
+     */
     private function resolveReferences(array $values): array
     {
         $flat = [];
@@ -123,43 +232,79 @@ final class ConfigFactory
         $resolving = [];
 
         $resolve = function (string $key) use (&$resolve, &$flat, &$resolved, &$resolving): mixed {
-            if (array_key_exists($key, $resolved)) { return $resolved[$key]; }
-            if (isset($resolving[$key])) { throw new RuntimeException("Circular config reference detected at {$key}."); }
-            if (!array_key_exists($key, $flat)) { throw new RuntimeException("Unknown config reference {{$key}}."); }
+            if (array_key_exists($key, $resolved)) {
+                return $resolved[$key];
+            }
+            if (isset($resolving[$key])) {
+                throw new RuntimeException("Circular config reference detected at {$key}.");
+            }
+            if (!array_key_exists($key, $flat)) {
+                throw new RuntimeException("Unknown config reference {{$key}}.");
+            }
             $resolving[$key] = true;
             $value = $flat[$key];
             if (is_string($value)) {
-                $value = preg_replace_callback('/\{([A-Za-z0-9_.-]+)\}/', function (array $m) use (&$resolve, &$flat): string {
-                    $ref = $m[1];
-                    if (!array_key_exists($ref, $flat)) {
-                        $matches = [];
-                        foreach ($flat as $candidate => $_) {
-                            if (str_ends_with($candidate, '.' . $ref)) { $matches[] = $candidate; }
+                $value = preg_replace_callback(
+                    '/\{([A-Za-z0-9_.-]+)\}/',
+                    function (array $m) use (&$resolve, &$flat): string {
+                        $ref = $m[1];
+                        if (!array_key_exists($ref, $flat)) {
+                            $matches = [];
+                            foreach ($flat as $candidate => $_) {
+                                if (str_ends_with($candidate, '.' . $ref)) {
+                                    $matches[] = $candidate;
+                                }
+                            }
+                            if (count($matches) === 1) {
+                                $ref = $matches[0];
+                            } elseif (count($matches) > 1) {
+                                throw new RuntimeException(
+                                    "Ambiguous config reference {{$ref}}; use a section-qualified reference.",
+                                );
+                            }
                         }
-                        if (count($matches) === 1) { $ref = $matches[0]; }
-                        elseif (count($matches) > 1) { throw new RuntimeException("Ambiguous config reference {{$ref}}; use a section-qualified reference."); }
-                    }
-                    $replacement = $resolve($ref);
-                    return is_scalar($replacement) ? (string) $replacement : '';
-                }, $value);
+                        $replacement = $resolve($ref);
+                        return is_scalar($replacement) ? (string) $replacement : '';
+                    },
+                    $value,
+                );
             }
             unset($resolving[$key]);
             return $resolved[$key] = $value;
         };
 
-        foreach (array_keys($flat) as $key) { $resolve($key); }
+        foreach (array_keys($flat) as $key) {
+            $resolve($key);
+        }
         return $this->inflate($values, $resolved);
     }
 
+    /**
+     * Flattens leaf values into dot-qualified keys.
+     *
+     * @param array<string, mixed> $values Source tree.
+     * @param array<string, mixed> $flat Accumulator mutated by reference.
+     */
     private function flatten(array $values, array &$flat, string $prefix = ''): void
     {
         foreach ($values as $key => $value) {
             $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
-            if (is_array($value)) { $this->flatten($value, $flat, $path); }
-            else { $flat[$path] = $value; }
+            if (is_array($value)) {
+                $this->flatten($value, $flat, $path);
+            } else {
+                $flat[$path] = $value;
+            }
         }
     }
 
+    /**
+     * Reconstructs the original tree shape from resolved flattened values.
+     *
+     * @param array<string, mixed> $template Shape authority.
+     * @param array<string, mixed> $resolved Dot-qualified leaf values.
+     *
+     * @return array<string, mixed> Resolved hierarchical tree.
+     */
     private function inflate(array $template, array $resolved, string $prefix = ''): array
     {
         $result = [];
@@ -170,6 +315,13 @@ final class ConfigFactory
         return $result;
     }
 
+    /**
+     * Hashes ordered source paths, modification times, and byte sizes.
+     *
+     * @param list<non-empty-string> $sources Existing guarded source files.
+     *
+     * @return non-empty-string Lowercase SHA-256 fingerprint.
+     */
     private function fingerprint(array $sources): string
     {
         $parts = [];
@@ -180,6 +332,15 @@ final class ConfigFactory
         return hash('sha256', implode('|', $parts));
     }
 
+    /**
+     * Atomically replaces the compiled PHP cache after serializing validated data.
+     *
+     * @param non-empty-string $cacheFile Target cache path.
+     * @param non-empty-string $fingerprint Source fingerprint stored with values.
+     * @param array<string, mixed> $values Fully resolved configuration tree.
+     *
+     * @throws RuntimeException When the directory or atomic write cannot complete.
+     */
     private function compile(string $cacheFile, string $fingerprint, array $values): void
     {
         if (!is_dir($this->cacheDir) && !mkdir($this->cacheDir, 0775, true) && !is_dir($this->cacheDir)) {

@@ -1,5 +1,19 @@
 <?php
 
+/**
+ * @file Validator.php
+ * @path src/Validation/Validator.php
+ * @version 1.0.0
+ * @date 2026-05-20
+ * @author Walter Torres
+ * @copyright Copyright 2026, Bluewater.
+ * @license OSL-3.0
+ * @maintainer ApiForge Team
+ * @status dev
+ *
+ * Validates DTO property attributes and reports all field failures through a structured exception.
+ */
+
 declare(strict_types=1);
 
 namespace Bluewater\Validation;
@@ -7,19 +21,41 @@ namespace Bluewater\Validation;
 use ReflectionClass;
 use RuntimeException;
 
+/**
+ * Evaluates supported validation attributes on initialized object properties.
+ *
+ * All properties are inspected and all detected field failures are accumulated
+ * before one ValidationException is thrown. Uninitialized properties and
+ * unsupported attributes are ignored. Validation performs no mutation, I/O,
+ * authentication, or presentation-layer formatting.
+ */
 final class Validator
 {
+    /**
+     * Validates Required, Email, and MinLength constraints on an object.
+     *
+     * @throws ValidationException When one or more fields violate constraints.
+     */
     public function validate(object $value): void
     {
         $errors = [];
         $ref = new ReflectionClass($value);
         foreach ($ref->getProperties() as $property) {
-            if (!$property->isInitialized($value)) { continue; }
+            if (!$property->isInitialized($value)) {
+                continue;
+            }
+
             $current = $property->getValue($value);
-            if ($property->getAttributes(Required::class) !== [] && ($current === null || $current === '')) {
+            if (
+                $property->getAttributes(Required::class) !== []
+                && ($current === null || (is_string($current) && trim($current) === ''))
+            ) {
                 $errors[$property->getName()][] = 'This value is required.';
             }
-            if ($property->getAttributes(Email::class) !== [] && is_string($current) && filter_var($current, FILTER_VALIDATE_EMAIL) === false) {
+            if (
+                $property->getAttributes(Email::class) !== []
+                && (!is_string($current) || filter_var($current, FILTER_VALIDATE_EMAIL) === false)
+            ) {
                 $errors[$property->getName()][] = 'Invalid email address.';
             }
             foreach ($property->getAttributes(MinLength::class) as $attribute) {
@@ -29,12 +65,24 @@ final class Validator
                 }
             }
         }
-        if ($errors !== []) { throw new ValidationException($errors); }
+        if ($errors !== []) {
+            throw new ValidationException($errors);
+        }
     }
 }
 
+/**
+ * Reports every field-level validation failure for one attempted DTO value.
+ *
+ * Error keys are property names and values are non-empty ordered message lists.
+ * The exception contains no request bodies, credentials, or property values.
+ */
 final class ValidationException extends RuntimeException
 {
+    /**
+     * @param array<non-empty-string, non-empty-list<non-empty-string>> $errors
+     *     Field errors in reflection and validator evaluation order.
+     */
     public function __construct(public readonly array $errors)
     {
         parent::__construct('Request validation failed.');

@@ -1,5 +1,19 @@
 <?php
 
+/**
+ * @file index.php
+ * @path examples/host/public/app_1/index.php
+ * @version 1.0.0
+ * @date 2026-05-20
+ * @author Walter Torres
+ * @copyright Copyright 2026, Bluewater.
+ * @license OSL-3.0
+ * @maintainer ApiForge Team
+ * @status dev
+ *
+ * Runs the example application through the PHP-FPM runtime adapter after validating required environment configuration.
+ */
+
 declare(strict_types=1);
 
 use Bluewater\Host;

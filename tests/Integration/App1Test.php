@@ -1,5 +1,19 @@
 <?php
 
+/**
+ * @file App1Test.php
+ * @path tests/Integration/App1Test.php
+ * @version 1.0.0
+ * @date 2026-05-20
+ * @author Walter Torres
+ * @copyright Copyright 2026, Bluewater.
+ * @license OSL-3.0
+ * @maintainer ApiForge Team
+ * @status dev
+ *
+ * Verifies the app1test behavior and its observable framework contracts.
+ */
+
 declare(strict_types=1);
 
 namespace Bluewater\Tests\Integration;
@@ -8,10 +22,13 @@ use Bluewater\Host;
 use Bluewater\Http\Request;
 use PHPUnit\Framework\TestCase;
 
+/** Verifies the example application through its complete host and request pipeline. */
 final class App1Test extends TestCase
 {
+    /** @var non-empty-string Absolute example application root. */
     private string $appRoot;
 
+    /** Configures process environment and clears test-owned runtime artifacts. */
     protected function setUp(): void
     {
         $this->appRoot = dirname(__DIR__, 2) . '/examples/host/app/app_1';
@@ -20,6 +37,7 @@ final class App1Test extends TestCase
         $this->cleanupRuntime();
     }
 
+    /** Clears artifacts and removes the process environment overrides. */
     protected function tearDown(): void
     {
         $this->cleanupRuntime();
@@ -27,6 +45,7 @@ final class App1Test extends TestCase
         putenv('BLUEWATER_ENV');
     }
 
+    /** Confirms that the health endpoint boots and returns JSON through Host. */
     public function testHealthEndpointBootsThroughSharedHost(): void
     {
         $app = Host::fromEnvironment()->application('app_1');
@@ -36,6 +55,7 @@ final class App1Test extends TestCase
         self::assertStringContainsString('"status":"ok"', $response->body);
     }
 
+    /** Confirms DTO validation becomes a structured 422 response. */
     public function testValidationIsFirstClass(): void
     {
         $app = Host::fromEnvironment()->application('app_1');
@@ -51,6 +71,7 @@ final class App1Test extends TestCase
         self::assertStringContainsString('validation_failed', $response->body);
     }
 
+    /** Confirms directory middleware denies a missing key and accepts a valid key. */
     public function testDirectoryMiddlewareProtectsAdminEndpoint(): void
     {
         $app = Host::fromEnvironment()->application('app_1');
@@ -61,6 +82,7 @@ final class App1Test extends TestCase
         self::assertSame(200, $authorized->status);
     }
 
+    /** Confirms discovered routes appear in the generated OpenAPI document. */
     public function testOpenApiIsDerivedFromDiscoveredRoutes(): void
     {
         $app = Host::fromEnvironment()->application('app_1');
@@ -72,9 +94,17 @@ final class App1Test extends TestCase
         self::assertArrayHasKey('/users/{id}', $document['paths']);
     }
 
+    /** Removes only runtime files owned by the example integration fixture. */
     private function cleanupRuntime(): void
     {
-        foreach (['cache/config.php', 'cache/routes.php', 'logs/app_1.log', 'logs/application.log', 'data/app_1.sqlite'] as $relative) {
+        $runtimeFiles = [
+            'cache/config.php',
+            'cache/routes.php',
+            'logs/app_1.log',
+            'logs/application.log',
+            'data/app_1.sqlite',
+        ];
+        foreach ($runtimeFiles as $relative) {
             @unlink($this->appRoot . '/' . $relative);
         }
     }

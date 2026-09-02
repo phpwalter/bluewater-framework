@@ -1,5 +1,19 @@
 <?php
 
+/**
+ * @file ContainerTest.php
+ * @path tests/Container/ContainerTest.php
+ * @version 1.0.0
+ * @date 2026-05-20
+ * @author Walter Torres
+ * @copyright Copyright 2026, Bluewater.
+ * @license OSL-3.0
+ * @maintainer ApiForge Team
+ * @status dev
+ *
+ * Verifies the container test behavior and its observable framework contracts.
+ */
+
 declare(strict_types=1);
 
 namespace Bluewater\Tests\Container;
@@ -7,8 +21,10 @@ namespace Bluewater\Tests\Container;
 use Bluewater\Container\Container;
 use PHPUnit\Framework\TestCase;
 
+/** Verifies explicit interface registration and recursive constructor autowiring. */
 final class ContainerTest extends TestCase
 {
+    /** Confirms registered interfaces compose with an autowired concrete service. */
     public function testInterfacesCanBeRegisteredAndConcreteDependenciesAutowire(): void
     {
         $container = new Container();
@@ -19,10 +35,34 @@ final class ContainerTest extends TestCase
     }
 }
 
-interface Clock { public function now(): string; }
-final class FixedClock implements Clock { public function now(): string { return 'fixed'; } }
+/** Defines the minimal test clock dependency. */
+interface Clock
+{
+    /** Returns the fixture's stable time label. */
+    public function now(): string;
+}
+
+/** Provides a deterministic clock for container tests. */
+final class FixedClock implements Clock
+{
+    /** @return 'fixed' Stable test value. */
+    public function now(): string
+    {
+        return 'fixed';
+    }
+}
+
+/** Demonstrates constructor injection of an interface-bound dependency. */
 final class UsesClock
 {
-    public function __construct(private readonly Clock $clock) {}
-    public function value(): string { return $this->clock->now(); }
+    /** Retains the injected clock without invoking it. */
+    public function __construct(private readonly Clock $clock)
+    {
+    }
+
+    /** Returns the value produced by the injected clock. */
+    public function value(): string
+    {
+        return $this->clock->now();
+    }
 }

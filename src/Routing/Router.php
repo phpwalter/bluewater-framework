@@ -1,5 +1,20 @@
 <?php
 
+/**
+ * @file Router.php
+ * @path src/Routing/Router.php
+ * @version 1.0.0
+ * @date 2026-05-20
+ * @author Walter Torres
+ * @copyright Copyright 2026, Bluewater.
+ * @license OSL-3.0
+ * @maintainer ApiForge Team
+ * @status dev
+ *
+ * Discovers file-based endpoints, rejects route ambiguity, compiles route
+ * metadata, and performs deterministic matching.
+ */
+
 declare(strict_types=1);
 
 namespace Bluewater\Routing;
@@ -14,16 +29,37 @@ use ReflectionClass;
 use ReflectionMethod;
 use RuntimeException;
 
+/**
+ * Discovers endpoint handlers and matches immutable requests to compiled routes.
+ *
+ * Endpoint files are traversed and sorted lexically. Routes are derived from
+ * handler names or Path attributes; duplicate method/canonical-path pairs and
+ * unmatched parameter declarations fail discovery. Static routes sort before
+ * dynamic routes, then longer paths sort first. A source fingerprint controls
+ * atomic cache reuse. Router performs resolution only; dispatch is delegated.
+ */
 final class Router
 {
-    /** @var Route[] */
+    /** @var list<Route> Routes in deterministic match-precedence order. */
     private array $routes = [];
 
+    /** Retains application and configuration metadata without filesystem I/O. */
     public function __construct(
         private readonly ApplicationDefinition $app,
         private readonly Config $config,
-    ) {}
+    ) {
+    }
 
+    /**
+     * Discovers routes or restores them from a current compiled cache.
+     *
+     * Endpoint and directory-middleware files may be included, reflection is
+     * performed, and the route cache may be atomically replaced. The route list
+     * changes only after a complete cache load or successful discovery pass.
+     *
+     * @throws RuntimeException When endpoint declarations, route parameters,
+     *     middleware manifests, conflicts, or cache writes are invalid.
+     */
     public function discover(): void
     {
         $cache = $this->app->cache . '/routes.php';
@@ -62,15 +98,24 @@ final class Router
             $directoryMiddleware = $this->directoryMiddleware(dirname($file));
 
             foreach ($ref->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
-                if ($method->isConstructor() || $method->isStatic() || $method->getDeclaringClass()->getName() !== $class) {
+                if (
+                    $method->isConstructor()
+                    || $method->isStatic()
+                    || $method->getDeclaringClass()->getName() !== $class
+                ) {
                     continue;
                 }
 
                 $pathAttr = $method->getAttributes(Path::class)[0] ?? null;
                 [$verb, $suffix] = $this->parseHandlerName($method->getName(), $pathAttr !== null);
-                if ($verb === null) { continue; }
+                if ($verb === null) {
+                    continue;
+                }
 
-                $methodParameters = array_map(static fn ($parameter): string => $parameter->getName(), $method->getParameters());
+                $methodParameters = array_map(
+                    static fn ($parameter): string => $parameter->getName(),
+                    $method->getParameters(),
+                );
                 $path = $basePath;
                 if ($pathAttr !== null) {
                     $custom = $pathAttr->newInstance()->value;
@@ -78,7 +123,10 @@ final class Router
                 } elseif ($suffix !== '') {
                     foreach ($this->suffixParameters($suffix) as $parameterName) {
                         if (!in_array($parameterName, $methodParameters, true)) {
-                            throw new RuntimeException("Handler {$class}::{$method->getName()} derives route parameter {{$parameterName}} but has no matching method parameter.");
+                            throw new RuntimeException(
+                                "Handler {$class}::{$method->getName()} derives route parameter "
+                                . "{{$parameterName}} but has no matching method parameter.",
+                            );
                         }
                         $path .= '/{' . $parameterName . '}';
                     }
@@ -95,7 +143,10 @@ final class Router
                 [$regex, $params] = $this->compileRegex($path);
                 foreach ($params as $parameterName) {
                     if (!in_array($parameterName, $methodParameters, true)) {
-                        throw new RuntimeException("Route {$verb} {$path} declares {{$parameterName}} but {$class}::{$method->getName()} has no matching parameter.");
+                        throw new RuntimeException(
+                            "Route {$verb} {$path} declares {{$parameterName}} but "
+                            . "{$class}::{$method->getName()} has no matching parameter.",
+                        );
                     }
                 }
 
@@ -113,14 +164,25 @@ final class Router
         $this->compile($cache, $fingerprint, $routes);
     }
 
+    /**
+     * Returns the first route matching the request method and path.
+     *
+     * Captured path parameters preserve declaration order and remain strings.
+     *
+     * @throws RouteNotFound When no compiled route matches exactly.
+     */
     public function match(Request $request): Route
     {
         foreach ($this->routes as $route) {
-            if ($route->httpMethod !== $request->method) { continue; }
+            if ($route->httpMethod !== $request->method) {
+                continue;
+            }
             if (preg_match($route->regex, $request->path, $matches) === 1) {
                 $params = [];
                 foreach ($route->parameters as $name) {
-                    if (isset($matches[$name])) { $params[$name] = $matches[$name]; }
+                    if (isset($matches[$name])) {
+                        $params[$name] = $matches[$name];
+                    }
                 }
                 return new Route(
                     $route->httpMethod,
@@ -137,28 +199,45 @@ final class Router
         throw new RouteNotFound("Route not found: {$request->method} {$request->path}");
     }
 
-    /** @return Route[] */
-    public function routes(): array { return $this->routes; }
+    /** @return list<Route> Routes in deterministic match-precedence order. */
+    public function routes(): array
+    {
+        return $this->routes;
+    }
 
+    /** @return list<non-empty-string> Endpoint files in lexical path order. */
     private function endpointFiles(): array
     {
         $dir = $this->app->endpointPath();
-        if (!is_dir($dir)) { return []; }
+        if (!is_dir($dir)) {
+            return [];
+        }
         $files = [];
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
         foreach ($iterator as $file) {
-            if (!$file->isFile() || strtolower($file->getExtension()) !== 'php') { continue; }
-            if (str_starts_with($file->getBasename(), '_')) { continue; }
+            if (!$file->isFile() || strtolower($file->getExtension()) !== 'php') {
+                continue;
+            }
+            if (str_starts_with($file->getBasename(), '_')) {
+                continue;
+            }
             $files[] = $file->getPathname();
         }
         sort($files);
         return $files;
     }
 
+    /**
+     * Derives an HTTP verb and route-parameter suffix from a handler name.
+     *
+     * @return array{0: non-empty-string|null, 1: string} Uppercase verb and suffix.
+     */
     private function parseHandlerName(string $name, bool $allowPrefixedVerb = false): array
     {
         foreach (['get', 'post', 'put', 'patch', 'delete', 'options', 'head'] as $verb) {
-            if ($name === $verb) { return [strtoupper($verb), '']; }
+            if ($name === $verb) {
+                return [strtoupper($verb), ''];
+            }
             if (str_starts_with($name, $verb . 'By')) {
                 return [strtoupper($verb), substr($name, strlen($verb . 'By'))];
             }
@@ -169,13 +248,21 @@ final class Router
         return [null, ''];
     }
 
+    /** @return list<non-empty-string> Lower-camel parameter names in suffix order. */
     private function suffixParameters(string $suffix): array
     {
-        if ($suffix === '') { return []; }
+        if ($suffix === '') {
+            return [];
+        }
         $parts = preg_split('/And(?=[A-Z])/', $suffix) ?: [$suffix];
         return array_map(static fn (string $part): string => lcfirst($part), $parts);
     }
 
+    /**
+     * Compiles a path template to an anchored regex and ordered parameter list.
+     *
+     * @return array{0: non-empty-string, 1: list<non-empty-string>}
+     */
     private function compileRegex(string $path): array
     {
         $params = [];
@@ -193,11 +280,19 @@ final class Router
         return ['#^' . $regex . '/?$#', $params];
     }
 
+    /** @return non-empty-string StudlyCaps class segment derived from a filename. */
     private function studly(string $name): string
     {
         return str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
     }
 
+    /**
+     * Loads directory middleware from root to the endpoint's parent directory.
+     *
+     * @return list<class-string> Middleware class names in execution order.
+     *
+     * @throws RuntimeException When a manifest or entry has the wrong type.
+     */
     private function directoryMiddleware(string $endpointDirectory): array
     {
         $root = rtrim($this->app->endpointPath(), '/');
@@ -213,24 +308,36 @@ final class Router
         }
 
         foreach ($candidates as $file) {
-            if (!is_file($file)) { continue; }
+            if (!is_file($file)) {
+                continue;
+            }
             $items = require $file;
             if (!is_array($items)) {
                 throw new RuntimeException("Directory middleware file must return an array: {$file}");
             }
             foreach ($items as $item) {
-                if (!is_string($item)) { throw new RuntimeException("Middleware entries must be class names: {$file}"); }
+                if (!is_string($item)) {
+                    throw new RuntimeException("Middleware entries must be class names: {$file}");
+                }
                 $middleware[] = $item;
             }
         }
         return $middleware;
     }
 
+    /**
+     * Instantiates middleware attributes in reflection declaration order.
+     *
+     * @param list<\ReflectionAttribute<UseMiddleware>> $attributes
+     *
+     * @return list<class-string> Declared middleware class names.
+     */
     private function middlewareAttributes(array $attributes): array
     {
         return array_map(static fn ($attribute): string => $attribute->newInstance()->middleware, $attributes);
     }
 
+    /** @return non-empty-string SHA-256 fingerprint of route-affecting files. */
     private function fingerprint(array $files): string
     {
         $parts = [];
@@ -242,7 +349,9 @@ final class Router
                 if (is_file($middleware)) {
                     $parts[] = $middleware . ':' . (filemtime($middleware) ?: 0) . ':' . (filesize($middleware) ?: 0);
                 }
-                if ($dir === $this->app->endpointPath()) { break; }
+                if ($dir === $this->app->endpointPath()) {
+                    break;
+                }
                 $dir = dirname($dir);
             }
         }
@@ -250,7 +359,15 @@ final class Router
         return hash('sha256', implode('|', array_unique($parts)));
     }
 
-    /** @param Route[] $routes */
+    /**
+     * Atomically writes a PHP route cache derived from immutable route values.
+     *
+     * @param non-empty-string $cache Target cache path.
+     * @param non-empty-string $fingerprint Route-source fingerprint.
+     * @param list<Route> $routes Routes in match-precedence order.
+     *
+     * @throws RuntimeException When serialization or atomic replacement fails.
+     */
     private function compile(string $cache, string $fingerprint, array $routes): void
     {
         $rows = array_map(static fn (Route $r): array => [
@@ -266,7 +383,12 @@ final class Router
 
         $payload = ['fingerprint' => $fingerprint, 'routes' => $rows];
         $tmp = $cache . '.' . getmypid() . '.tmp';
-        if (file_put_contents($tmp, "<?php\nreturn " . var_export($payload, true) . ";\n", LOCK_EX) === false || !rename($tmp, $cache)) {
+        $written = file_put_contents(
+            $tmp,
+            "<?php\nreturn " . var_export($payload, true) . ";\n",
+            LOCK_EX,
+        );
+        if ($written === false || !rename($tmp, $cache)) {
             @unlink($tmp);
             throw new RuntimeException("Unable to compile route cache: {$cache}");
         }
