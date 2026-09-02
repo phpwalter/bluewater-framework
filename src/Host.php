@@ -7,6 +7,7 @@ namespace Bluewater;
 use Bluewater\Config\ConfigFactory;
 use Bluewater\Container\Container;
 use Bluewater\Endpoint\EndpointDispatcher;
+use Bluewater\Extension\ExtensionManager;
 use Bluewater\Middleware\Pipeline;
 use Bluewater\Routing\Router;
 use RuntimeException;
@@ -41,20 +42,30 @@ final class Host
             }
         }
 
-        $appConfig = $root . '/config/App.ini.php';
         $config = (new ConfigFactory($this->coreConfigPath, $root . '/config', $root . '/cache'))->create();
-        $namespace = (string) $config->get('APP_NAMESPACE', 'Apps\\' . str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name))));
+        $namespace = (string) $config->get(
+            'APP_NAMESPACE',
+            'Apps\\' . str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name))),
+        );
         $environment = (string) (getenv('BLUEWATER_ENV') ?: $config->get('BW_ENV', 'production'));
 
         (new ApplicationClassLoader($namespace, $root))->register();
 
-        $definition = new ApplicationDefinition($name, $namespace, $root, $root . '/cache', $root . '/logs', $environment);
+        $definition = new ApplicationDefinition(
+            $name,
+            $namespace,
+            $root,
+            $root . '/cache',
+            $root . '/logs',
+            $environment,
+        );
         $container = new Container();
         $pipeline = new Pipeline($container);
         $router = new Router($definition, $config);
         $dispatcher = new EndpointDispatcher($container);
+        $extensions = new ExtensionManager($container);
 
-        $app = new Application($definition, $container, $config, $router, $pipeline, $dispatcher);
+        $app = new Application($definition, $container, $config, $router, $pipeline, $dispatcher, $extensions);
         $bootstrapClass = $namespace . '\\Bootstrap';
         if (!class_exists($bootstrapClass)) {
             throw new RuntimeException("Required bootstrap class not found: {$bootstrapClass}");
