@@ -33,7 +33,7 @@ final class App1Test extends TestCase
     {
         $this->appRoot = dirname(__DIR__, 2) . '/examples/host/app/app_1';
         putenv('BLUEWATER_APP_BASE=' . dirname($this->appRoot));
-        putenv('BLUEWATER_ENV=testing');
+        putenv('BLUEWATER_ENV=development');
         $this->cleanupRuntime();
     }
 
@@ -79,7 +79,7 @@ final class App1Test extends TestCase
         $authorized = $app->handle(new Request('GET', '/admin/stats', ['X-API-Key' => 'demo-key']));
 
         self::assertSame(401, $unauthorized->status);
-        self::assertSame(200, $authorized->status);
+        self::assertSame(200, $authorized->status, $authorized->body);
     }
 
     /** Confirms discovered routes appear in the generated OpenAPI document. */
