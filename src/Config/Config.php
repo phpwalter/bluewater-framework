@@ -24,7 +24,12 @@ final class Config implements ArrayAccess
         return $cursor;
     }
 
-    public function has(string $key): bool { return $this->get($key, new \stdClass()) !== null || array_key_exists($key, $this->values); }
+    public function has(string $key): bool
+    {
+        $sentinel = new \stdClass();
+        return $this->get($key, $sentinel) !== $sentinel;
+    }
+
     public function offsetExists(mixed $offset): bool { return is_string($offset) && $this->has($offset); }
     public function offsetGet(mixed $offset): mixed { return is_string($offset) ? $this->get($offset) : null; }
     public function offsetSet(mixed $offset, mixed $value): void { throw new LogicException('Configuration is immutable.'); }
