@@ -1,0 +1,10 @@
+<?php
+exit;
+?>
+[session]
+ENABLED = false
+NAME = "BLUEWATERSESSID"
+LIFETIME = 0
+COOKIE_SECURE = true
+COOKIE_HTTPONLY = true
+COOKIE_SAMESITE = "Lax"
