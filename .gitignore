@@ -1,0 +1,6 @@
+/vendor/
+/.phpunit.cache/
+/examples/host/app/*/cache/*
+/examples/host/app/*/logs/*
+/examples/host/app/*/data/*.sqlite
+!.gitkeep
