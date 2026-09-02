@@ -40,14 +40,44 @@ final class Users extends Endpoint {
 PHP;
         file_put_contents($this->root . '/Endpoints/users.php', $source);
 
-        $definition = new ApplicationDefinition('test', $namespace, $this->root, $this->root . '/cache', $this->root . '/logs');
-        $router = new Router($definition, new Config([]));
+        $router = $this->router($namespace);
         $router->discover();
 
         self::assertSame('/users', $router->match(new Request('GET', '/users'))->path);
         $dynamic = $router->match(new Request('GET', '/users/42'));
         self::assertSame('/users/{id}', $dynamic->path);
         self::assertSame('42', $dynamic->parameters['id']);
+    }
+
+    public function testPathAttributeRefinesAReadableHttpHandler(): void
+    {
+        $namespace = 'RouteFixture' . bin2hex(random_bytes(4));
+        $source = <<<PHP
+<?php
+namespace {$namespace}\\Endpoints;
+use Bluewater\\Endpoint\\Endpoint;
+use Bluewater\\Routing\\Path;
+final class Users extends Endpoint {
+    #[Path('/{id}/permissions')]
+    public function getPermissions(int \$id): array { return ['id' => \$id]; }
+}
+PHP;
+        file_put_contents($this->root . '/Endpoints/users.php', $source);
+
+        $router = $this->router($namespace);
+        $router->discover();
+        $route = $router->match(new Request('GET', '/users/7/permissions'));
+
+        self::assertSame('/users/{id}/permissions', $route->path);
+        self::assertSame('7', $route->parameters['id']);
+    }
+
+    private function router(string $namespace): Router
+    {
+        return new Router(
+            new ApplicationDefinition('test', $namespace, $this->root, $this->root . '/cache', $this->root . '/logs'),
+            new Config([]),
+        );
     }
 
     private function remove(string $path): void
