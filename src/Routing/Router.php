@@ -66,16 +66,16 @@ final class Router
                     continue;
                 }
 
-                [$verb, $suffix] = $this->parseHandlerName($method->getName());
+                $pathAttr = $method->getAttributes(Path::class)[0] ?? null;
+                [$verb, $suffix] = $this->parseHandlerName($method->getName(), $pathAttr !== null);
                 if ($verb === null) { continue; }
 
+                $methodParameters = array_map(static fn ($parameter): string => $parameter->getName(), $method->getParameters());
                 $path = $basePath;
-                $pathAttr = $method->getAttributes(Path::class)[0] ?? null;
                 if ($pathAttr !== null) {
                     $custom = $pathAttr->newInstance()->value;
                     $path .= '/' . ltrim($custom, '/');
                 } elseif ($suffix !== '') {
-                    $methodParameters = array_map(static fn ($parameter): string => $parameter->getName(), $method->getParameters());
                     foreach ($this->suffixParameters($suffix) as $parameterName) {
                         if (!in_array($parameterName, $methodParameters, true)) {
                             throw new RuntimeException("Handler {$class}::{$method->getName()} derives route parameter {{$parameterName}} but has no matching method parameter.");
@@ -93,6 +93,12 @@ final class Router
                 $seen[$key] = $class . '::' . $method->getName();
 
                 [$regex, $params] = $this->compileRegex($path);
+                foreach ($params as $parameterName) {
+                    if (!in_array($parameterName, $methodParameters, true)) {
+                        throw new RuntimeException("Route {$verb} {$path} declares {{$parameterName}} but {$class}::{$method->getName()} has no matching parameter.");
+                    }
+                }
+
                 $methodMiddleware = $this->middlewareAttributes($method->getAttributes(UseMiddleware::class));
                 $middleware = [...$directoryMiddleware, ...$classMiddleware, ...$methodMiddleware];
                 $routes[] = new Route($verb, $path, $regex, $file, $class, $method->getName(), $params, $middleware);
@@ -149,12 +155,15 @@ final class Router
         return $files;
     }
 
-    private function parseHandlerName(string $name): array
+    private function parseHandlerName(string $name, bool $allowPrefixedVerb = false): array
     {
         foreach (['get', 'post', 'put', 'patch', 'delete', 'options', 'head'] as $verb) {
             if ($name === $verb) { return [strtoupper($verb), '']; }
             if (str_starts_with($name, $verb . 'By')) {
                 return [strtoupper($verb), substr($name, strlen($verb . 'By'))];
+            }
+            if ($allowPrefixedVerb && str_starts_with($name, $verb) && strlen($name) > strlen($verb)) {
+                return [strtoupper($verb), ''];
             }
         }
         return [null, ''];
