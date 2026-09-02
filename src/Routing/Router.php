@@ -75,8 +75,9 @@ final class Router
                     $custom = $pathAttr->newInstance()->value;
                     $path .= '/' . ltrim($custom, '/');
                 } elseif ($suffix !== '') {
+                    $methodParameters = array_map(static fn ($parameter): string => $parameter->getName(), $method->getParameters());
                     foreach ($this->suffixParameters($suffix) as $parameterName) {
-                        if (!$method->hasParameter($parameterName)) {
+                        if (!in_array($parameterName, $methodParameters, true)) {
                             throw new RuntimeException("Handler {$class}::{$method->getName()} derives route parameter {{$parameterName}} but has no matching method parameter.");
                         }
                         $path .= '/{' . $parameterName . '}';
@@ -84,21 +85,17 @@ final class Router
                 }
 
                 $path = preg_replace('#/+#', '/', $path) ?: '/';
-                $key = $verb . ' ' . $path;
+                $canonicalPath = preg_replace('/\{[A-Za-z_][A-Za-z0-9_]*\}/', '{}', $path) ?: $path;
+                $key = $verb . ' ' . $canonicalPath;
                 if (isset($seen[$key])) {
-                    throw new RuntimeException("Route conflict: {$key} is defined by {$seen[$key]} and {$class}::{$method->getName()}.");
+                    throw new RuntimeException("Route conflict: {$verb} {$path} conflicts with {$seen[$key]}.");
                 }
                 $seen[$key] = $class . '::' . $method->getName();
 
-                $params = [];
-                $regex = preg_replace_callback('/\{([A-Za-z_][A-Za-z0-9_]*)\}/', static function (array $m) use (&$params): string {
-                    $params[] = $m[1];
-                    return '(?P<' . $m[1] . '>[^/]+)';
-                }, $path) ?: $path;
-
+                [$regex, $params] = $this->compileRegex($path);
                 $methodMiddleware = $this->middlewareAttributes($method->getAttributes(UseMiddleware::class));
                 $middleware = [...$directoryMiddleware, ...$classMiddleware, ...$methodMiddleware];
-                $routes[] = new Route($verb, $path, '#^' . $regex . '/?$#', $file, $class, $method->getName(), $params, $middleware);
+                $routes[] = new Route($verb, $path, $regex, $file, $class, $method->getName(), $params, $middleware);
             }
         }
 
@@ -170,6 +167,23 @@ final class Router
         return array_map(static fn (string $part): string => lcfirst($part), $parts);
     }
 
+    private function compileRegex(string $path): array
+    {
+        $params = [];
+        $regex = '';
+        $offset = 0;
+        preg_match_all('/\{([A-Za-z_][A-Za-z0-9_]*)\}/', $path, $matches, PREG_OFFSET_CAPTURE);
+        foreach ($matches[0] as $index => [$token, $position]) {
+            $regex .= preg_quote(substr($path, $offset, $position - $offset), '#');
+            $name = $matches[1][$index][0];
+            $params[] = $name;
+            $regex .= '(?P<' . $name . '>[^/]+)';
+            $offset = $position + strlen($token);
+        }
+        $regex .= preg_quote(substr($path, $offset), '#');
+        return ['#^' . $regex . '/?$#', $params];
+    }
+
     private function studly(string $name): string
     {
         return str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
@@ -224,7 +238,7 @@ final class Router
             }
         }
         sort($parts);
-        return hash('sha256', implode('|', $parts));
+        return hash('sha256', implode('|', array_unique($parts)));
     }
 
     /** @param Route[] $routes */
