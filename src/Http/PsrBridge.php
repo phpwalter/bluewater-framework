@@ -45,10 +45,16 @@ final class PsrBridge
             ? json_decode($bodyString, true)
             : $bodyString;
 
+        $method = strtoupper($request->getMethod());
+        if ($method === '') {
+            $method = 'GET';
+        }
+        $headers = array_map(static fn (array $values): array => array_values($values), $request->getHeaders());
+
         return new Request(
-            strtoupper($request->getMethod()),
+            $method,
             $request->getUri()->getPath() ?: '/',
-            $request->getHeaders(),
+            $headers,
             $request->getQueryParams(),
             $body,
             $request->getServerParams(),

@@ -87,12 +87,69 @@ final class Config implements ArrayAccess
     }
 
     /**
+     * Returns a configured string after validating the resolved runtime value.
+     *
+     * @param non-empty-string $key Exact, qualified, or unique leaf key.
+     *
+     * @throws RuntimeException When the resolved value is not a string.
+     */
+    public function string(string $key, string $default = ''): string
+    {
+        $value = $this->get($key, $default);
+        if (!is_string($value)) {
+            throw new RuntimeException("Configuration key '{$key}' must be a string.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * Returns a configured non-empty string after validating the runtime value.
+     *
+     * @param non-empty-string $key Exact, qualified, or unique leaf key.
+     * @param non-empty-string|null $default Optional non-empty fallback.
+     *
+     * @return non-empty-string
+     *
+     * @throws RuntimeException When the resolved value is missing, not a string, or blank.
+     */
+    public function nonEmptyString(string $key, ?string $default = null): string
+    {
+        $value = $this->get($key, $default);
+        if (!is_string($value) || trim($value) === '') {
+            throw new RuntimeException("Configuration key '{$key}' must be a non-empty string.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * Returns a configured boolean after validating the resolved runtime value.
+     *
+     * @param non-empty-string $key Exact, qualified, or unique leaf key.
+     *
+     * @throws RuntimeException When the resolved value is not a boolean.
+     */
+    public function bool(string $key, bool $default = false): bool
+    {
+        $value = $this->get($key, $default);
+        if (!is_bool($value)) {
+            throw new RuntimeException("Configuration key '{$key}' must be a boolean.");
+        }
+
+        return $value;
+    }
+
+    /**
      * Reports whether a key resolves, including keys whose value is null.
      *
      * @throws RuntimeException When an unqualified key is ambiguous.
      */
     public function has(string $key): bool
     {
+        if ($key === '') {
+            return false;
+        }
         $sentinel = new \stdClass();
         return $this->get($key, $sentinel) !== $sentinel;
     }
@@ -100,13 +157,13 @@ final class Config implements ArrayAccess
     /** Returns true when a string offset resolves to a configured value. */
     public function offsetExists(mixed $offset): bool
     {
-        return is_string($offset) && $this->has($offset);
+        return is_string($offset) && $offset !== '' && $this->has($offset);
     }
 
     /** Returns the configured value, or null for a non-string or missing offset. */
     public function offsetGet(mixed $offset): mixed
     {
-        return is_string($offset) ? $this->get($offset) : null;
+        return is_string($offset) && $offset !== '' ? $this->get($offset) : null;
     }
 
     /**
@@ -138,12 +195,26 @@ final class Config implements ArrayAccess
     private function findLeaf(array $values, string $key, array &$matches): void
     {
         foreach ($values as $candidate => $value) {
-            if ((string) $candidate === $key) {
+            if ($candidate === $key) {
                 $matches[] = $value;
             }
             if (is_array($value)) {
-                $this->findLeaf($value, $key, $matches);
+                $this->findLeaf($this->normalizeMap($value), $key, $matches);
             }
         }
+    }
+
+    /** @return array<string, mixed> Runtime-validated string-keyed map. */
+    private function normalizeMap(array $values): array
+    {
+        $normalized = [];
+        foreach ($values as $key => $value) {
+            if (!is_string($key)) {
+                throw new RuntimeException('Configuration keys must be strings.');
+            }
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 }

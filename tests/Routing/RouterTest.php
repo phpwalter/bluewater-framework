@@ -95,6 +95,8 @@ PHP;
     /** Builds a router over the current isolated fixture root. */
     private function router(string $namespace): Router
     {
+        self::assertNotSame('', $namespace);
+        /** @var non-empty-string $namespace */
         return new Router(
             new ApplicationDefinition('test', $namespace, $this->root, $this->root . '/cache', $this->root . '/logs'),
             new Config([]),

@@ -92,7 +92,12 @@ final class OpenApiGenerator
                 }
 
                 if (str_contains($type->getName(), '\\DTO\\')) {
-                    $schemaName = $this->schema($type->getName(), $schemas);
+                    $dtoClass = $type->getName();
+                    if (!class_exists($dtoClass)) {
+                        continue;
+                    }
+                    /** @var class-string $dtoClass */
+                    $schemaName = $this->schema($dtoClass, $schemas);
                     $requestBody = [
                         'required' => true,
                         'content' => [
@@ -124,7 +129,9 @@ final class OpenApiGenerator
                 && !$returnType->isBuiltin()
                 && class_exists($returnType->getName())
             ) {
-                $schemaName = $this->schema($returnType->getName(), $schemas);
+                $returnClass = $returnType->getName();
+                /** @var class-string $returnClass */
+                $schemaName = $this->schema($returnClass, $schemas);
                 $operation['responses']['200']['content']['application/json']['schema'] = [
                     '$ref' => '#/components/schemas/' . $schemaName,
                 ];

@@ -25,7 +25,7 @@ use Bluewater\OpenApi\Summary;
 /** Exposes the current route-derived OpenAPI document for the example application. */
 final class Openapi extends Endpoint
 {
-    /** Returns a newly generated OpenAPI document without caching it. */
+    /** @return array<string, mixed> Newly generated OpenAPI document. */
     #[Summary('OpenAPI 3.1 document')]
     public function get(OpenApiGenerator $generator): array
     {

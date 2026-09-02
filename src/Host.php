@@ -113,11 +113,15 @@ final class Host
             $runtimeSymbols,
         ))->create();
 
-        $namespace = (string) $config->get(
+        $namespace = $config->nonEmptyString(
             'APP_NAMESPACE',
             'Apps\\' . str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name))),
         );
-        $environment = (string) (getenv('BLUEWATER_ENV') ?: $config->get('BW_ENV', 'production'));
+        $configuredEnvironment = $config->nonEmptyString('BW_ENV', 'production');
+        $environmentValue = getenv('BLUEWATER_ENV');
+        $environment = $environmentValue === false || $environmentValue === ''
+            ? $configuredEnvironment
+            : $environmentValue;
 
         (new ApplicationClassLoader($namespace, $root))->register();
 
@@ -130,8 +134,8 @@ final class Host
             $environment,
         );
         $container = new Container();
-        $logging = (bool) $config->get('features.LOGGING', true);
-        $logFile = (string) $config->get('logging.FILE', $definition->logs . '/application.log');
+        $logging = $config->bool('features.LOGGING', true);
+        $logFile = $config->nonEmptyString('logging.FILE', $definition->logs . '/application.log');
         $container->instance(LoggerInterface::class, $logging ? new FileLogger($logFile) : new NullLogger());
         $container->instance(SerializerRegistry::class, new SerializerRegistry());
 

@@ -68,7 +68,7 @@ final class PdoDatabase implements Database
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
         $row = $statement->fetch();
-        return $row === false ? null : $row;
+        return $row === false ? null : $this->normalizeRow($row);
     }
 
     /** @inheritDoc */
@@ -76,7 +76,7 @@ final class PdoDatabase implements Database
     {
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
-        return $statement->fetchAll();
+        return array_map($this->normalizeRow(...), $statement->fetchAll());
     }
 
     /** @inheritDoc */
@@ -125,5 +125,29 @@ final class PdoDatabase implements Database
     public function pdo(): PDO
     {
         return $this->pdo;
+    }
+
+    /**
+     * Validates PDO's configured associative-row contract.
+     *
+     * @return array<string, mixed> Associative database row.
+     *
+     * @throws \UnexpectedValueException When a driver violates the configured fetch mode.
+     */
+    private function normalizeRow(mixed $row): array
+    {
+        if (!is_array($row)) {
+            throw new \UnexpectedValueException('PDO returned a non-array row.');
+        }
+
+        $normalized = [];
+        foreach ($row as $key => $value) {
+            if (!is_string($key)) {
+                throw new \UnexpectedValueException('PDO returned a non-associative row.');
+            }
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 }

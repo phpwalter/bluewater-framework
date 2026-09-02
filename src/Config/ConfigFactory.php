@@ -71,7 +71,7 @@ final class ConfigFactory
         if (is_file($cacheFile)) {
             $compiled = require $cacheFile;
             if (is_array($compiled) && ($compiled['fingerprint'] ?? null) === $fingerprint) {
-                return new Config((array) ($compiled['values'] ?? []));
+                return new Config($this->normalizeMap($compiled['values'] ?? []));
             }
         }
 
@@ -99,7 +99,7 @@ final class ConfigFactory
             ...(glob(rtrim($dir, '/') . '/*.ini.php') ?: []),
             ...(glob(rtrim($dir, '/') . '/*.session.php') ?: []),
         ];
-        $files = array_values(array_unique($files));
+        $files = array_values(array_filter(array_unique($files), static fn (string $file): bool => $file !== ''));
         sort($files);
         return $files;
     }
@@ -109,7 +109,7 @@ final class ConfigFactory
     {
         $result = [];
         foreach ($this->files($dir) as $file) {
-            $result = $this->mergeRecursive($result, $this->parser->parse($file));
+            $result = $this->mergeRecursive($result, $this->normalizeMap($this->parser->parse($file)));
         }
         return $result;
     }
@@ -126,7 +126,10 @@ final class ConfigFactory
     {
         foreach ($override as $key => $value) {
             if (isset($base[$key]) && is_array($base[$key]) && is_array($value)) {
-                $base[$key] = $this->mergeRecursive($base[$key], $value);
+                $base[$key] = $this->mergeRecursive(
+                    $this->normalizeMap($base[$key]),
+                    $this->normalizeMap($value),
+                );
             } else {
                 $base[$key] = $value;
             }
@@ -170,7 +173,11 @@ final class ConfigFactory
             }
             $currentPath = $path === '' ? (string) $key : $path . '.' . $key;
             if (is_array($value) && is_array($core[$key])) {
-                $this->validateOverrideTypes($core[$key], $value, $currentPath);
+                $this->validateOverrideTypes(
+                    $this->normalizeMap($core[$key]),
+                    $this->normalizeMap($value),
+                    $currentPath,
+                );
                 continue;
             }
             if ($core[$key] !== null && get_debug_type($core[$key]) !== get_debug_type($value)) {
@@ -200,7 +207,7 @@ final class ConfigFactory
                 return [true, $value];
             }
             if (is_array($value)) {
-                $found = $this->findKey($value, $needle);
+                $found = $this->findKey($this->normalizeMap($value), $needle);
                 if ($found[0]) {
                     return $found;
                 }
@@ -290,7 +297,7 @@ final class ConfigFactory
         foreach ($values as $key => $value) {
             $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
             if (is_array($value)) {
-                $this->flatten($value, $flat, $path);
+                $this->flatten($this->normalizeMap($value), $flat, $path);
             } else {
                 $flat[$path] = $value;
             }
@@ -310,9 +317,35 @@ final class ConfigFactory
         $result = [];
         foreach ($template as $key => $value) {
             $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
-            $result[$key] = is_array($value) ? $this->inflate($value, $resolved, $path) : $resolved[$path];
+            $result[$key] = is_array($value)
+                ? $this->inflate($this->normalizeMap($value), $resolved, $path)
+                : $resolved[$path];
         }
         return $result;
+    }
+
+    /**
+     * Recursively validates configuration maps and normalizes their nested shape.
+     *
+     * @return array<string, mixed> String-keyed configuration map.
+     *
+     * @throws RuntimeException When any configuration map contains a numeric key.
+     */
+    private function normalizeMap(mixed $value): array
+    {
+        if (!is_array($value)) {
+            throw new RuntimeException('Configuration data must be an array.');
+        }
+
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            if (!is_string($key)) {
+                throw new RuntimeException('Configuration keys must be strings.');
+            }
+            $normalized[$key] = is_array($item) ? $this->normalizeMap($item) : $item;
+        }
+
+        return $normalized;
     }
 
     /**

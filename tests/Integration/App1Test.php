@@ -90,6 +90,10 @@ final class App1Test extends TestCase
 
         self::assertSame(200, $response->status);
         $document = json_decode($response->body, true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($document);
+        self::assertArrayHasKey('openapi', $document);
+        self::assertArrayHasKey('paths', $document);
+        self::assertIsArray($document['paths']);
         self::assertSame('3.1.0', $document['openapi']);
         self::assertArrayHasKey('/users/{id}', $document['paths']);
     }

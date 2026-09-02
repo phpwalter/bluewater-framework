@@ -33,7 +33,7 @@ final readonly class MinLength
     /**
      * Creates a positive minimum-length constraint.
      *
-     * @param positive-int $value Minimum Unicode character count.
+     * @param int $value Runtime-validated minimum Unicode character count.
      *
      * @throws InvalidArgumentException When the minimum is less than one.
      */

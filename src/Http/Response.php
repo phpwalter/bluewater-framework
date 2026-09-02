@@ -30,7 +30,7 @@ final readonly class Response
     /**
      * Creates a response from transport-ready values without further validation.
      *
-     * @param int<100, 599> $status HTTP status code.
+     * @param int $status HTTP status code supplied by a trusted transport boundary.
      * @param array<string, string> $headers Response headers by field name.
      * @param string $body Encoded response bytes.
      */

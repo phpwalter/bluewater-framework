@@ -53,16 +53,16 @@ final class Bootstrap implements ApplicationBootstrap
         $config = $app->config();
         $services = $app->services();
 
-        if ((bool) $config->get('features.DATABASE', true)) {
+        if ($config->bool('features.DATABASE', true)) {
             $dataDir = $app->definition()->root . '/data';
             if (!is_dir($dataDir) && !mkdir($dataDir, 0775, true) && !is_dir($dataDir)) {
                 throw new RuntimeException('Unable to create the example data directory.');
             }
 
             $database = PdoDatabase::connect(
-                (string) $config->get('database.DSN'),
-                (string) $config->get('database.USERNAME', '') ?: null,
-                (string) $config->get('database.PASSWORD', '') ?: null,
+                $config->nonEmptyString('database.DSN'),
+                $config->string('database.USERNAME') ?: null,
+                $config->string('database.PASSWORD') ?: null,
             );
             $database->execute(
                 'CREATE TABLE IF NOT EXISTS users ('
@@ -70,7 +70,9 @@ final class Bootstrap implements ApplicationBootstrap
                 . 'email TEXT NOT NULL UNIQUE, '
                 . 'name TEXT NOT NULL)',
             );
-            if ((int) ($database->fetchOne('SELECT COUNT(*) AS total FROM users')['total'] ?? 0) === 0) {
+            $countRow = $database->fetchOne('SELECT COUNT(*) AS total FROM users');
+            $count = $countRow['total'] ?? 0;
+            if ((!is_int($count) && !is_numeric($count)) || (int) $count === 0) {
                 $database->execute(
                     'INSERT INTO users (email, name) VALUES (:email, :name)',
                     ['email' => 'demo@example.com', 'name' => 'Demo User'],
@@ -80,14 +82,14 @@ final class Bootstrap implements ApplicationBootstrap
             $services->bind(UserRepository::class, DatabaseUserRepository::class);
         }
 
-        if ((bool) $config->get('features.AUTH', true)) {
+        if ($config->bool('features.AUTH', true)) {
             $auth = new AuthManager();
-            $apiKey = (string) $config->get('auth.API_KEY', 'demo-key');
+            $apiKey = $config->nonEmptyString('auth.API_KEY', 'demo-key');
             $auth->register('api_key', new ApiKeyProvider([$apiKey => ['id' => 'app_1', 'scopes' => ['admin']]]));
             $auth->register('jwt', new JwtProvider(
-                (string) $config->get('auth.JWT_SECRET', 'example-only-secret'),
-                issuer: (string) $config->get('auth.JWT_ISSUER', 'bluewater-example'),
-                audience: (string) $config->get('auth.JWT_AUDIENCE', 'app_1'),
+                $config->nonEmptyString('auth.JWT_SECRET', 'example-only-secret'),
+                issuer: $config->nonEmptyString('auth.JWT_ISSUER', 'bluewater-example'),
+                audience: $config->nonEmptyString('auth.JWT_AUDIENCE', 'app_1'),
             ));
             $auth->register('oauth', new OAuthBearerProvider(new DemoOAuthIntrospector()));
             $services->instance(AuthManager::class, $auth);
@@ -99,7 +101,7 @@ final class Bootstrap implements ApplicationBootstrap
     /** Appends request logging after route discovery when the feature is enabled. */
     public function boot(Application $app): void
     {
-        if ((bool) $app->config()->get('features.LOGGING', true)) {
+        if ($app->config()->bool('features.LOGGING', true)) {
             $app->middleware()->add(RequestLoggingMiddleware::class);
         }
     }

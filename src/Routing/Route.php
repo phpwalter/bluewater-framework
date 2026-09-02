@@ -36,7 +36,7 @@ final readonly class Route
      * @param non-empty-string $file Endpoint source file path.
      * @param class-string $class Endpoint class name.
      * @param non-empty-string $method Public endpoint method name.
-     * @param list<non-empty-string>|array<non-empty-string, string> $parameters
+     * @param array<array-key, string> $parameters
      *     Declared names before matching or captured values after matching.
      * @param list<class-string> $middleware Middleware classes in execution order.
      */

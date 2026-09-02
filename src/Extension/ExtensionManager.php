@@ -88,6 +88,7 @@ final class ExtensionManager
      */
     private function resolved(): array
     {
+        $resolved = [];
         foreach ($this->extensions as $index => $extension) {
             if (is_string($extension)) {
                 $extension = $this->container->get($extension);
@@ -96,7 +97,8 @@ final class ExtensionManager
                 }
                 $this->extensions[$index] = $extension;
             }
+            $resolved[] = $extension;
         }
-        return $this->extensions;
+        return $resolved;
     }
 }

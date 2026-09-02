@@ -43,7 +43,11 @@ final class AppInfoExtension implements Extension
     /** Writes one non-sensitive debug event after route discovery. */
     public function boot(Application $app): void
     {
-        $app->services()->get(LoggerInterface::class)->debug('Application extension booted', [
+        $logger = $app->services()->get(LoggerInterface::class);
+        if (!$logger instanceof LoggerInterface) {
+            throw new \RuntimeException('The logger service must implement LoggerInterface.');
+        }
+        $logger->debug('Application extension booted', [
             'app' => $app->definition()->name,
         ]);
     }

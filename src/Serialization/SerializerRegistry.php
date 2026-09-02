@@ -69,6 +69,15 @@ final class SerializerRegistry
             $accept = strtolower($accept);
             if (isset($this->serializers[$accept])) {
                 $serialized = ($this->serializers[$accept])($normalized, $request);
+                if (
+                    !$serialized instanceof Response
+                    && !is_scalar($serialized)
+                    && !$serialized instanceof \Stringable
+                ) {
+                    throw new \UnexpectedValueException(
+                        'A custom serializer must return a response or string-compatible value.',
+                    );
+                }
                 return $serialized instanceof Response
                     ? $serialized
                     : new Response(200, ['Content-Type' => $accept], (string) $serialized);
@@ -132,6 +141,9 @@ final class SerializerRegistry
 
                 return;
             }
+            if (!is_scalar($item) && !$item instanceof \Stringable && $item !== null) {
+                throw new \UnexpectedValueException('XML serialization requires scalar-compatible leaf values.');
+            }
             $node->addChild(
                 preg_replace('/[^A-Za-z0-9_-]/', '_', $key) ?: 'item',
                 htmlspecialchars((string) $item, ENT_XML1),
@@ -159,7 +171,15 @@ final class SerializerRegistry
             fputcsv($stream, array_keys($first));
         }
         foreach ($rows as $row) {
-            fputcsv($stream, is_array($row) ? array_values($row) : [(string) $row]);
+            $fields = is_array($row) ? array_values($row) : [$row];
+            $normalizedFields = [];
+            foreach ($fields as $field) {
+                if (!is_scalar($field) && !$field instanceof \Stringable && $field !== null) {
+                    throw new \UnexpectedValueException('CSV serialization requires scalar-compatible field values.');
+                }
+                $normalizedFields[] = $field instanceof \Stringable ? (string) $field : $field;
+            }
+            fputcsv($stream, $normalizedFields);
         }
 
         rewind($stream);

@@ -54,8 +54,11 @@ final class FileLogger extends AbstractLogger
      *
      * @throws RuntimeException When the line cannot be appended completely.
      */
-    public function log($level, string|Stringable $message, array $context = []): void
+    public function log(mixed $level, string|Stringable $message, array $context = []): void
     {
+        if (!is_scalar($level) && !$level instanceof Stringable) {
+            throw new RuntimeException('The log level must be string-compatible.');
+        }
         $context = $this->redact($context);
         $line = sprintf(
             "[%s] %s: %s%s\n",
@@ -89,22 +92,22 @@ final class FileLogger extends AbstractLogger
     /**
      * Returns a recursively redacted copy of context without mutating the input.
      *
-     * @param array<string, mixed> $context Untrusted logging context.
+     * @param array<array-key, mixed> $context Untrusted logging context.
      *
      * @return array<string, mixed> Context safe for this logger's output policy.
      */
     private function redact(array $context): array
     {
+        $redacted = [];
         foreach ($context as $key => $value) {
-            if (preg_match(self::SENSITIVE_KEY_PATTERN, (string) $key) === 1) {
-                $context[$key] = '[REDACTED]';
+            $normalizedKey = (string) $key;
+            if (preg_match(self::SENSITIVE_KEY_PATTERN, $normalizedKey) === 1) {
+                $redacted[$normalizedKey] = '[REDACTED]';
                 continue;
             }
-            if (is_array($value)) {
-                $context[$key] = $this->redact($value);
-            }
+            $redacted[$normalizedKey] = is_array($value) ? $this->redact($value) : $value;
         }
 
-        return $context;
+        return $redacted;
     }
 }

@@ -59,13 +59,22 @@ final readonly class Request
      */
     public static function fromGlobals(): self
     {
-        $headers = function_exists('getallheaders') ? (getallheaders() ?: []) : [];
+        $globalHeaders = function_exists('getallheaders') ? (getallheaders() ?: []) : [];
+        $headers = [];
+        foreach ($globalHeaders as $name => $value) {
+            if (is_string($name) && is_string($value)) {
+                $headers[$name] = $value;
+            }
+        }
         $raw = file_get_contents('php://input') ?: '';
         $type = strtolower((string) ($headers['Content-Type'] ?? $headers['content-type'] ?? ''));
         $body = str_contains($type, 'application/json') && $raw !== '' ? json_decode($raw, true) : $raw;
-        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+        $uriValue = $_SERVER['REQUEST_URI'] ?? '/';
+        $uri = is_string($uriValue) ? $uriValue : '/';
+        $methodValue = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        $method = is_string($methodValue) && $methodValue !== '' ? strtoupper($methodValue) : 'GET';
         return new self(
-            strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')),
+            $method,
             parse_url($uri, PHP_URL_PATH) ?: '/',
             $headers,
             $_GET,

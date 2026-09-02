@@ -26,8 +26,10 @@ use Bluewater\Middleware\UseMiddleware;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
+use ReflectionParameter;
 use ReflectionMethod;
 use RuntimeException;
+use SplFileInfo;
 
 /**
  * Discovers endpoint handlers and matches immutable requests to compiled routes.
@@ -46,8 +48,9 @@ final class Router
     /** Retains application and configuration metadata without filesystem I/O. */
     public function __construct(
         private readonly ApplicationDefinition $app,
-        private readonly Config $config,
+        Config $config,
     ) {
+        unset($config);
     }
 
     /**
@@ -69,8 +72,22 @@ final class Router
         if (is_file($cache)) {
             $compiled = require $cache;
             if (is_array($compiled) && ($compiled['fingerprint'] ?? null) === $fingerprint) {
-                $this->routes = array_map(static fn (array $r): Route => new Route(...$r), $compiled['routes'] ?? []);
-                return;
+                $rows = $compiled['routes'] ?? null;
+                if (is_array($rows)) {
+                    /** @var list<array{
+                     *     httpMethod: non-empty-string,
+                     *     path: non-empty-string,
+                     *     regex: non-empty-string,
+                     *     file: non-empty-string,
+                     *     class: class-string,
+                     *     method: non-empty-string,
+                     *     parameters: array<array-key, string>,
+                     *     middleware: list<class-string>
+                     * }> $rows
+                     */
+                    $this->routes = array_map(static fn (array $row): Route => new Route(...$row), $rows);
+                    return;
+                }
             }
         }
 
@@ -113,7 +130,7 @@ final class Router
                 }
 
                 $methodParameters = array_map(
-                    static fn ($parameter): string => $parameter->getName(),
+                    static fn (ReflectionParameter $parameter): string => $parameter->getName(),
                     $method->getParameters(),
                 );
                 $path = $basePath;
@@ -162,7 +179,7 @@ final class Router
                 substr_count($a->path, '{') <=> substr_count($b->path, '{')
                 ?: strlen($b->path) <=> strlen($a->path),
         );
-        $this->routes = $routes;
+        $this->routes = array_values($routes);
         $this->compile($cache, $fingerprint, $routes);
     }
 
@@ -217,6 +234,9 @@ final class Router
         $files = [];
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
         foreach ($iterator as $file) {
+            if (!$file instanceof SplFileInfo) {
+                continue;
+            }
             if (!$file->isFile() || strtolower($file->getExtension()) !== 'php') {
                 continue;
             }
@@ -257,7 +277,15 @@ final class Router
             return [];
         }
         $parts = preg_split('/And(?=[A-Z])/', $suffix) ?: [$suffix];
-        return array_map(static fn (string $part): string => lcfirst($part), $parts);
+        $parameters = [];
+        foreach ($parts as $part) {
+            $parameter = lcfirst($part);
+            if ($parameter !== '') {
+                $parameters[] = $parameter;
+            }
+        }
+
+        return $parameters;
     }
 
     /**
@@ -285,7 +313,12 @@ final class Router
     /** @return non-empty-string StudlyCaps class segment derived from a filename. */
     private function studly(string $name): string
     {
-        return str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+        $result = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+        if ($result === '') {
+            throw new RuntimeException('An endpoint filename must contain a class name.');
+        }
+
+        return $result;
     }
 
     /**
@@ -318,9 +351,10 @@ final class Router
                 throw new RuntimeException("Directory middleware file must return an array: {$file}");
             }
             foreach ($items as $item) {
-                if (!is_string($item)) {
+                if (!is_string($item) || !class_exists($item)) {
                     throw new RuntimeException("Middleware entries must be class names: {$file}");
                 }
+                /** @var class-string $item */
                 $middleware[] = $item;
             }
         }
@@ -339,7 +373,11 @@ final class Router
         return array_map(static fn ($attribute): string => $attribute->newInstance()->middleware, $attributes);
     }
 
-    /** @return non-empty-string SHA-256 fingerprint of route-affecting files. */
+    /**
+     * @param list<non-empty-string> $files Endpoint source files.
+     *
+     * @return non-empty-string SHA-256 fingerprint of route-affecting files.
+     */
     private function fingerprint(array $files): string
     {
         $parts = [];

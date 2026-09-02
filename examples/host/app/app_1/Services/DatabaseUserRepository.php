@@ -38,7 +38,10 @@ final class DatabaseUserRepository implements UserRepository
     /** @inheritDoc */
     public function all(): array
     {
-        return array_map($this->toDto(...), $this->database->fetchAll('SELECT id, email, name FROM users ORDER BY id'));
+        return array_map(
+            fn (array $row): UserDto => $this->toDto($row),
+            $this->database->fetchAll('SELECT id, email, name FROM users ORDER BY id'),
+        );
     }
 
     /** @inheritDoc */
@@ -60,7 +63,11 @@ final class DatabaseUserRepository implements UserRepository
             ['email' => $email],
         );
 
-        return $this->toDto($row ?? ['id' => 0, 'email' => $email, 'name' => $name]);
+        if ($row === null) {
+            throw new \UnexpectedValueException('The inserted user could not be reloaded.');
+        }
+
+        return $this->toDto($row);
     }
 
     /** @inheritDoc */
@@ -72,10 +79,22 @@ final class DatabaseUserRepository implements UserRepository
     /**
      * Maps one trusted query row to a public DTO.
      *
-     * @param array{id: int|numeric-string, email: string, name: string} $row
+     * @param array<string, mixed> $row Trusted query row before runtime shape validation.
+     *
+     * @throws \UnexpectedValueException When the database row violates the selected shape.
      */
     private function toDto(array $row): UserDto
     {
-        return new UserDto((int) $row['id'], (string) $row['email'], (string) $row['name']);
+        $id = $row['id'] ?? null;
+        $email = $row['email'] ?? null;
+        $name = $row['name'] ?? null;
+        if ((!is_int($id) && !is_string($id)) || !is_numeric($id) || (int) $id < 1) {
+            throw new \UnexpectedValueException('User row contains an invalid identifier.');
+        }
+        if (!is_string($email) || $email === '' || !is_string($name) || $name === '') {
+            throw new \UnexpectedValueException('User row contains invalid text fields.');
+        }
+
+        return new UserDto((int) $id, $email, $name);
     }
 }

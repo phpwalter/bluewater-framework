@@ -37,14 +37,14 @@ final class JwtProvider implements AuthenticationProvider
     /**
      * Creates a fail-closed JWT verifier.
      *
-     * @param non-empty-string $secret HMAC verification secret retained in
+     * @param string $secret HMAC verification secret retained in
      *     memory and never logged or serialized.
-     * @param 'HS256' $algorithm Closed set of supported JWT algorithms.
-     * @param non-empty-string|null $issuer Exact required `iss` claim, or null
+     * @param string $algorithm Runtime-validated JWT algorithm.
+     * @param string|null $issuer Exact required `iss` claim, or null
      *     when issuer validation is intentionally not configured.
-     * @param non-empty-string|null $audience Required `aud` member, or null
+     * @param string|null $audience Required `aud` member, or null
      *     when audience validation is intentionally not configured.
-     * @param non-negative-int $clockSkew Maximum temporal claim tolerance in seconds.
+     * @param int $clockSkew Runtime-validated temporal claim tolerance in seconds.
      *
      * @throws InvalidArgumentException When configuration is blank, unsupported,
      *     or specifies a negative clock-skew value.
@@ -175,17 +175,34 @@ final class JwtProvider implements AuthenticationProvider
             return null;
         }
 
-        return is_array($value) ? $value : null;
+        if (!is_array($value)) {
+            return null;
+        }
+        foreach (array_keys($value) as $key) {
+            if (!is_string($key)) {
+                return null;
+            }
+        }
+
+        return $value;
     }
 
-    /** Returns true only when the scalar issuer exactly matches configuration. */
+    /**
+     * Returns true only when the scalar issuer exactly matches configuration.
+     *
+     * @param array<string, mixed> $claims Validated JSON claim object.
+     */
     private function matchesIssuer(array $claims): bool
     {
         $issuer = $claims['iss'] ?? null;
         return is_string($issuer) && hash_equals((string) $this->issuer, $issuer);
     }
 
-    /** Returns true only when the configured audience is an exact `aud` member. */
+    /**
+     * Returns true only when the configured audience is an exact `aud` member.
+     *
+     * @param array<string, mixed> $claims Validated JSON claim object.
+     */
     private function matchesAudience(array $claims): bool
     {
         $audience = $claims['aud'] ?? null;

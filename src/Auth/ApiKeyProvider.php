@@ -58,7 +58,7 @@ final class ApiKeyProvider implements AuthenticationProvider
         }
 
         foreach ($this->keys as $key => $definition) {
-            if (!is_string($key) || $key === '') {
+            if ($key === '') {
                 throw new InvalidArgumentException('Configured API keys must be non-empty strings.');
             }
             if (is_string($definition) && trim($definition) === '') {

@@ -60,7 +60,7 @@ final class ApplicationClassLoader
      * The method performs filesystem reads only for classes under the owned
      * prefix. Missing files are ignored so later autoloaders may run.
      *
-     * @param class-string $class Fully qualified class name requested by PHP.
+     * @param string $class Fully qualified class name requested by PHP.
      */
     private function load(string $class): void
     {

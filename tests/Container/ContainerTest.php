@@ -31,6 +31,7 @@ final class ContainerTest extends TestCase
         $container->instance(Clock::class, new FixedClock());
         $service = $container->get(UsesClock::class);
 
+        self::assertInstanceOf(UsesClock::class, $service);
         self::assertSame('fixed', $service->value());
     }
 }

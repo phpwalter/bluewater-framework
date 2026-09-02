@@ -45,7 +45,8 @@ final readonly class Identity
      * @param non-empty-string $id Stable provider subject or client identifier.
      * @param array<string, mixed> $claims Validated provider claims. Callers
      *     must avoid logging or publicly serializing sensitive claim values.
-     * @param list<string> $scopes Provider scopes; blank and duplicate values
+     * @param array<array-key, mixed> $scopes Provider scopes; non-string, blank,
+     *     and duplicate values
      *     are removed while first-seen ordering is preserved.
      *
      * @throws InvalidArgumentException When the identifier is blank.
@@ -66,7 +67,8 @@ final readonly class Identity
                 continue;
             }
 
-            $normalizedScopes[] = trim($scope);
+            $normalizedScope = trim($scope);
+            $normalizedScopes[] = $normalizedScope;
         }
 
         $this->id = $id;

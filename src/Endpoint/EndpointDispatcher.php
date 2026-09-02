@@ -68,18 +68,24 @@ final class EndpointDispatcher
 
         $method = new ReflectionMethod($route->class, $route->method);
         $arguments = [];
+        $routeParameters = [];
+        foreach ($route->parameters as $name => $value) {
+            if (is_string($name)) {
+                $routeParameters[$name] = $value;
+            }
+        }
         try {
             foreach ($method->getParameters() as $parameter) {
                 $type = $parameter->getType();
                 $name = $parameter->getName();
 
                 if ($type instanceof ReflectionNamedType && $type->getName() === Request::class) {
-                    $arguments[] = $request->withAttributes($route->parameters);
+                    $arguments[] = $request->withAttributes($routeParameters);
                     continue;
                 }
-                if (array_key_exists($name, $route->parameters)) {
+                if (array_key_exists($name, $routeParameters)) {
                     $arguments[] = $this->cast(
-                        $route->parameters[$name],
+                        $routeParameters[$name],
                         $type instanceof ReflectionNamedType ? $type->getName() : null,
                     );
                     continue;
@@ -93,8 +99,12 @@ final class EndpointDispatcher
                 }
                 if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
                     $class = $type->getName();
+                    if (!class_exists($class)) {
+                        throw new RuntimeException("Endpoint dependency class not found: {$class}");
+                    }
+                    /** @var class-string $class */
                     if (is_array($request->body) && str_contains($class, '\\DTO\\')) {
-                        $arguments[] = $this->hydrate($class, $request->body);
+                        $arguments[] = $this->hydrate($class, $this->stringMap($request->body));
                         continue;
                     }
                     $arguments[] = $this->container->get($class);
@@ -112,6 +122,9 @@ final class EndpointDispatcher
             $serializers = $this->container->registered(SerializerRegistry::class)
                 ? $this->container->get(SerializerRegistry::class)
                 : $this->serializers;
+            if (!$serializers instanceof SerializerRegistry) {
+                throw new RuntimeException('The serializer service must be a SerializerRegistry.');
+            }
             return $serializers->response($method->invokeArgs($endpoint, $arguments), $request);
         } catch (ValidationException $e) {
             return Response::json(['error' => 'validation_failed', 'fields' => $e->errors], 422);
@@ -153,7 +166,7 @@ final class EndpointDispatcher
 
         /** @var Config $config */
         $config = $this->container->get(Config::class);
-        if ((bool) $config->get('features.VALIDATION', true)) {
+        if ($config->bool('features.VALIDATION', true)) {
             $this->validator->validate($object);
         }
         return $object;
@@ -162,21 +175,58 @@ final class EndpointDispatcher
     /**
      * Converts a request value to one supported builtin parameter type.
      *
-     * @param class-string|non-empty-string|null $type Reflected type name.
+     * @param string|null $type Reflected type name.
      *
      * @throws RuntimeException When integer, float, or boolean conversion fails.
      */
     private function cast(mixed $value, ?string $type): mixed
     {
         return match ($type) {
-            'int' => filter_var($value, FILTER_VALIDATE_INT) !== false
-                ? (int) $value
-                : throw new RuntimeException('Expected integer value.'),
-            'float' => is_numeric($value) ? (float) $value : throw new RuntimeException('Expected numeric value.'),
+            'int' => $this->integer($value),
+            'float' => $this->float($value),
             'bool' => filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
                 ?? throw new RuntimeException('Expected boolean value.'),
-            'string' => (string) $value,
+            'string' => is_scalar($value) || $value instanceof \Stringable
+                ? (string) $value
+                : throw new RuntimeException('Expected string-compatible value.'),
             default => $value,
         };
+    }
+
+    /** Returns an integer only after filter validation. */
+    private function integer(mixed $value): int
+    {
+        $filtered = filter_var($value, FILTER_VALIDATE_INT);
+        if (!is_int($filtered)) {
+            throw new RuntimeException('Expected integer value.');
+        }
+
+        return $filtered;
+    }
+
+    /** Returns a float only from native numeric values or numeric strings. */
+    private function float(mixed $value): float
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+        if (!is_string($value) || !is_numeric($value)) {
+            throw new RuntimeException('Expected numeric value.');
+        }
+
+        return (float) $value;
+    }
+
+    /** @return array<string, mixed> Runtime-validated request object map. */
+    private function stringMap(array $values): array
+    {
+        $normalized = [];
+        foreach ($values as $key => $value) {
+            if (is_string($key)) {
+                $normalized[$key] = $value;
+            }
+        }
+
+        return $normalized;
     }
 }
