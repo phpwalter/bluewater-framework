@@ -76,7 +76,7 @@ final class PdoDatabase implements Database
     {
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
-        return array_map($this->normalizeRow(...), $statement->fetchAll());
+        return array_values(array_map($this->normalizeRow(...), $statement->fetchAll()));
     }
 
     /** @inheritDoc */

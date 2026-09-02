@@ -35,7 +35,7 @@ final class ApiKeyProvider implements AuthenticationProvider
     /**
      * Creates a provider from an API-key-to-identity map.
      *
-     * @param array<non-empty-string, non-empty-string|array{
+     * @param array<array-key, non-empty-string|array{
      *     id?: non-empty-string,
      *     claims?: array<string, mixed>,
      *     scopes?: list<string>
@@ -58,7 +58,7 @@ final class ApiKeyProvider implements AuthenticationProvider
         }
 
         foreach ($this->keys as $key => $definition) {
-            if ($key === '') {
+            if (!is_string($key) || $key === '') {
                 throw new InvalidArgumentException('Configured API keys must be non-empty strings.');
             }
             if (is_string($definition) && trim($definition) === '') {

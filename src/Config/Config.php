@@ -29,7 +29,7 @@ use RuntimeException;
  * lookup searches recursively and rejects ambiguity instead of selecting by
  * traversal order. The class never reads files or environment state.
  *
- * @implements ArrayAccess<string, mixed>
+ * @implements ArrayAccess<array-key, mixed>
  */
 final class Config implements ArrayAccess
 {
@@ -204,7 +204,11 @@ final class Config implements ArrayAccess
         }
     }
 
-    /** @return array<string, mixed> Runtime-validated string-keyed map. */
+    /**
+     * @param array<array-key, mixed> $values Untrusted nested configuration map.
+     *
+     * @return array<string, mixed> Runtime-validated string-keyed map.
+     */
     private function normalizeMap(array $values): array
     {
         $normalized = [];

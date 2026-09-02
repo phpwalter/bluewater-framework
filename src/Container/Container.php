@@ -98,7 +98,7 @@ final class Container implements ContainerInterface
         if (is_callable($concrete) && !is_string($concrete)) {
             return $concrete($this);
         }
-        if (!is_string($concrete) || !class_exists($concrete)) {
+        if (!class_exists($concrete)) {
             throw new ContainerNotFound("Service not found: {$id}");
         }
 
@@ -116,7 +116,11 @@ final class Container implements ContainerInterface
         foreach ($ctor->getParameters() as $parameter) {
             $type = $parameter->getType();
             if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-                $args[] = $this->get($type->getName());
+                $dependency = $type->getName();
+                if ($dependency === '') {
+                    throw new ContainerResolutionException('An autowired dependency type must not be empty.');
+                }
+                $args[] = $this->get($dependency);
                 continue;
             }
             if ($parameter->isDefaultValueAvailable()) {

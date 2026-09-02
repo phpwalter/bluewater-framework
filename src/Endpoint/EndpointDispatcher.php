@@ -217,7 +217,11 @@ final class EndpointDispatcher
         return (float) $value;
     }
 
-    /** @return array<string, mixed> Runtime-validated request object map. */
+    /**
+     * @param array<array-key, mixed> $values Untrusted decoded request object.
+     *
+     * @return array<string, mixed> Runtime-validated request object map.
+     */
     private function stringMap(array $values): array
     {
         $normalized = [];

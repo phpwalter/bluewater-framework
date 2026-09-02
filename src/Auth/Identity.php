@@ -63,11 +63,14 @@ final readonly class Identity
 
         $normalizedScopes = [];
         foreach ($scopes as $scope) {
-            if (!is_string($scope) || trim($scope) === '') {
+            if (!is_string($scope)) {
                 continue;
             }
 
             $normalizedScope = trim($scope);
+            if ($normalizedScope === '') {
+                continue;
+            }
             $normalizedScopes[] = $normalizedScope;
         }
 

@@ -178,13 +178,15 @@ final class JwtProvider implements AuthenticationProvider
         if (!is_array($value)) {
             return null;
         }
-        foreach (array_keys($value) as $key) {
+        $object = [];
+        foreach ($value as $key => $item) {
             if (!is_string($key)) {
                 return null;
             }
+            $object[$key] = $item;
         }
 
-        return $value;
+        return $object;
     }
 
     /**

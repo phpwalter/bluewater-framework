@@ -179,7 +179,7 @@ final class Router
                 substr_count($a->path, '{') <=> substr_count($b->path, '{')
                 ?: strlen($b->path) <=> strlen($a->path),
         );
-        $this->routes = array_values($routes);
+        $this->routes = $routes;
         $this->compile($cache, $fingerprint, $routes);
     }
 
@@ -243,7 +243,10 @@ final class Router
             if (str_starts_with($file->getBasename(), '_')) {
                 continue;
             }
-            $files[] = $file->getPathname();
+            $path = $file->getPathname();
+            if ($path !== '') {
+                $files[] = $path;
+            }
         }
         sort($files);
         return $files;
