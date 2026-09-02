@@ -156,9 +156,11 @@ final class Router
             }
         }
 
-        usort($routes, static fn (Route $a, Route $b): int =>
-            substr_count($a->path, '{') <=> substr_count($b->path, '{')
-            ?: strlen($b->path) <=> strlen($a->path)
+        usort(
+            $routes,
+            static fn (Route $a, Route $b): int =>
+                substr_count($a->path, '{') <=> substr_count($b->path, '{')
+                ?: strlen($b->path) <=> strlen($a->path),
         );
         $this->routes = $routes;
         $this->compile($cache, $fingerprint, $routes);

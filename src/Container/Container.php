@@ -19,11 +19,8 @@ declare(strict_types=1);
 namespace Bluewater\Container;
 
 use Psr\Container\ContainerInterface;
-use Psr\Container\ContainerExceptionInterface;
-use Psr\Container\NotFoundExceptionInterface;
 use ReflectionClass;
 use ReflectionNamedType;
-use RuntimeException;
 
 /**
  * Resolves explicitly registered services and autowires concrete classes.
@@ -142,14 +139,4 @@ final class Container implements ContainerInterface
     {
         return $this->registered($id) || class_exists($id);
     }
-}
-
-/** Indicates that a requested service identifier has no resolution target. */
-final class ContainerNotFound extends RuntimeException implements NotFoundExceptionInterface
-{
-}
-
-/** Indicates that a known service cannot be constructed by the container. */
-final class ContainerResolutionException extends RuntimeException implements ContainerExceptionInterface
-{
 }

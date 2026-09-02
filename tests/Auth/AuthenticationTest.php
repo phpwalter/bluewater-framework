@@ -22,7 +22,6 @@ use Bluewater\Auth\ApiKeyProvider;
 use Bluewater\Auth\AuthManager;
 use Bluewater\Auth\JwtProvider;
 use Bluewater\Auth\OAuthBearerProvider;
-use Bluewater\Auth\OAuthIntrospector;
 use Bluewater\Http\Request;
 use LogicException;
 use PHPUnit\Framework\TestCase;
@@ -120,20 +119,5 @@ final class AuthenticationTest extends TestCase
     private function base64Url(string $value): string
     {
         return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
-    }
-}
-
-/** Returns one deterministic OAuth introspection result without performing I/O. */
-final readonly class StubOAuthIntrospector implements OAuthIntrospector
-{
-    /** @param array<string, mixed>|null $claims Result returned for every token. */
-    public function __construct(private ?array $claims)
-    {
-    }
-
-    /** @inheritDoc */
-    public function introspect(string $token): ?array
-    {
-        return $this->claims;
     }
 }

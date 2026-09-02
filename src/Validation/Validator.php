@@ -19,7 +19,6 @@ declare(strict_types=1);
 namespace Bluewater\Validation;
 
 use ReflectionClass;
-use RuntimeException;
 
 /**
  * Evaluates supported validation attributes on initialized object properties.
@@ -68,23 +67,5 @@ final class Validator
         if ($errors !== []) {
             throw new ValidationException($errors);
         }
-    }
-}
-
-/**
- * Reports every field-level validation failure for one attempted DTO value.
- *
- * Error keys are property names and values are non-empty ordered message lists.
- * The exception contains no request bodies, credentials, or property values.
- */
-final class ValidationException extends RuntimeException
-{
-    /**
-     * @param array<non-empty-string, non-empty-list<non-empty-string>> $errors
-     *     Field errors in reflection and validator evaluation order.
-     */
-    public function __construct(public readonly array $errors)
-    {
-        parent::__construct('Request validation failed.');
     }
 }

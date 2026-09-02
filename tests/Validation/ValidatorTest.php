@@ -18,9 +18,6 @@ declare(strict_types=1);
 
 namespace Bluewater\Tests\Validation;
 
-use Bluewater\Validation\Email;
-use Bluewater\Validation\MinLength;
-use Bluewater\Validation\Required;
 use Bluewater\Validation\ValidationException;
 use Bluewater\Validation\Validator;
 use PHPUnit\Framework\TestCase;
@@ -41,20 +38,5 @@ final class ValidatorTest extends TestCase
             self::assertSame(['Invalid email address.'], $exception->errors['email']);
             self::assertSame(['Minimum length is 2.'], $exception->errors['name']);
         }
-    }
-}
-
-/** Supplies attributed immutable properties to Validator. */
-final readonly class ValidationFixture
-{
-    /** Creates a fixture without normalizing its deliberately invalid values. */
-    public function __construct(
-        #[Required]
-        public string $required,
-        #[Email]
-        public string $email,
-        #[MinLength(2)]
-        public string $name,
-    ) {
     }
 }

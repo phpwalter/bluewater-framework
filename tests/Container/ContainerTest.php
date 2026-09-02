@@ -34,35 +34,3 @@ final class ContainerTest extends TestCase
         self::assertSame('fixed', $service->value());
     }
 }
-
-/** Defines the minimal test clock dependency. */
-interface Clock
-{
-    /** Returns the fixture's stable time label. */
-    public function now(): string;
-}
-
-/** Provides a deterministic clock for container tests. */
-final class FixedClock implements Clock
-{
-    /** @return 'fixed' Stable test value. */
-    public function now(): string
-    {
-        return 'fixed';
-    }
-}
-
-/** Demonstrates constructor injection of an interface-bound dependency. */
-final class UsesClock
-{
-    /** Retains the injected clock without invoking it. */
-    public function __construct(private readonly Clock $clock)
-    {
-    }
-
-    /** Returns the value produced by the injected clock. */
-    public function value(): string
-    {
-        return $this->clock->now();
-    }
-}

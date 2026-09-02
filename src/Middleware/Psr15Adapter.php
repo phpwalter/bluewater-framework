@@ -73,7 +73,7 @@ final class Psr15Adapter implements Middleware
             );
         }
 
-        $handler = new class($next, $this->responses, $this->streams) implements RequestHandlerInterface {
+        $handler = new class ($next, $this->responses, $this->streams) implements RequestHandlerInterface {
             /**
              * Creates a PSR handler around one Bluewater continuation.
              *
