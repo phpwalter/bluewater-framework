@@ -43,34 +43,29 @@ final class EndpointDispatcher
                     $arguments[] = $request->withAttributes($route->parameters);
                     continue;
                 }
-
                 if (array_key_exists($name, $route->parameters)) {
                     $arguments[] = $this->cast($route->parameters[$name], $type instanceof ReflectionNamedType ? $type->getName() : null);
                     continue;
                 }
-
                 if (array_key_exists($name, $request->query)) {
                     $arguments[] = $this->cast($request->query[$name], $type instanceof ReflectionNamedType ? $type->getName() : null);
                     continue;
                 }
-
                 if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
                     $class = $type->getName();
-                    if (is_array($request->body) && class_exists($class) && !$this->container->has($class)) {
+                    if (is_array($request->body) && class_exists($class) && !$this->container->registered($class)) {
                         $arguments[] = $this->hydrate($class, $request->body);
                         continue;
                     }
                     $arguments[] = $this->container->get($class);
                     continue;
                 }
-
                 if ($parameter->isDefaultValueAvailable()) {
                     $arguments[] = $parameter->getDefaultValue();
                     continue;
                 }
                 throw new RuntimeException("Unable to bind endpoint parameter {$route->class}::{$route->method}(\${$name}).");
             }
-
             return $this->serializers->response($method->invokeArgs($endpoint, $arguments), $request);
         } catch (ValidationException $e) {
             return Response::json(['error' => 'validation_failed', 'fields' => $e->errors], 422);
