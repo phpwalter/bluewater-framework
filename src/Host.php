@@ -11,6 +11,7 @@ use Bluewater\Extension\ExtensionManager;
 use Bluewater\Logging\FileLogger;
 use Bluewater\Middleware\Pipeline;
 use Bluewater\Routing\Router;
+use Bluewater\Serialization\SerializerRegistry;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use RuntimeException;
@@ -77,7 +78,9 @@ final class Host
         );
         $container = new Container();
         $logging = (bool) $config->get('features.LOGGING', true);
-        $container->instance(LoggerInterface::class, $logging ? new FileLogger($definition->logs . '/application.log') : new NullLogger());
+        $logFile = (string) $config->get('logging.FILE', $definition->logs . '/application.log');
+        $container->instance(LoggerInterface::class, $logging ? new FileLogger($logFile) : new NullLogger());
+        $container->instance(SerializerRegistry::class, new SerializerRegistry());
 
         $pipeline = new Pipeline($container);
         $router = new Router($definition, $config);
