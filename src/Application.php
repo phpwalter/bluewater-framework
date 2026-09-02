@@ -10,6 +10,7 @@ use Bluewater\Endpoint\EndpointDispatcher;
 use Bluewater\Http\Request;
 use Bluewater\Http\Response;
 use Bluewater\Middleware\Pipeline;
+use Bluewater\Routing\RouteNotFound;
 use Bluewater\Routing\Router;
 use Bluewater\Runtime\RuntimeAdapter;
 use Throwable;
@@ -50,14 +51,25 @@ final class Application
     {
         try {
             $route = $this->router->match($request);
-            return $this->pipeline->handle($request, fn (Request $r): Response => $this->dispatcher->dispatch($route, $r));
+            return $this->pipeline->handle(
+                $request,
+                fn (Request $r): Response => $this->dispatcher->dispatch($route, $r),
+                $route->middleware,
+            );
+        } catch (RouteNotFound $e) {
+            return Response::problem(404, 'Not Found', $this->isDevelopment() ? $e->getMessage() : null);
         } catch (Throwable $e) {
-            return Response::problem(500, 'Internal Server Error', $this->config->get('BW_ENV') === 'development' ? $e->getMessage() : null);
+            return Response::problem(500, 'Internal Server Error', $this->isDevelopment() ? $e->getMessage() : null);
         }
     }
 
     public function run(RuntimeAdapter $runtime): void
     {
         $runtime->emit($this->handle($runtime->request()));
+    }
+
+    private function isDevelopment(): bool
+    {
+        return $this->definition->environment === 'development' || $this->config->get('BW_ENV') === 'development';
     }
 }
