@@ -32,6 +32,9 @@ final class Application
         $this->container->instance(self::class, $this);
         $this->container->instance(ApplicationDefinition::class, $this->definition);
         $this->container->instance(Config::class, $this->config);
+        $this->container->instance(Router::class, $this->router);
+        $this->container->instance(Pipeline::class, $this->pipeline);
+        $this->container->instance(EndpointDispatcher::class, $this->dispatcher);
         $this->container->instance(ExtensionManager::class, $this->extensions);
     }
 
