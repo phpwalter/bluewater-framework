@@ -8,8 +8,11 @@ use Bluewater\Config\ConfigFactory;
 use Bluewater\Container\Container;
 use Bluewater\Endpoint\EndpointDispatcher;
 use Bluewater\Extension\ExtensionManager;
+use Bluewater\Logging\FileLogger;
 use Bluewater\Middleware\Pipeline;
 use Bluewater\Routing\Router;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use RuntimeException;
 
 final class Host
@@ -60,6 +63,9 @@ final class Host
             $environment,
         );
         $container = new Container();
+        $logging = (bool) $config->get('features.LOGGING', true);
+        $container->instance(LoggerInterface::class, $logging ? new FileLogger($definition->logs . '/application.log') : new NullLogger());
+
         $pipeline = new Pipeline($container);
         $router = new Router($definition, $config);
         $dispatcher = new EndpointDispatcher($container);
