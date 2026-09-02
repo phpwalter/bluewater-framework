@@ -1,0 +1,10 @@
+parameters:
+    level: 9
+    paths:
+        - src
+        - examples
+        - tests
+    excludePaths:
+        analyse:
+            - examples/**/config/*.ini.php
+            - examples/**/config/*.session.php
