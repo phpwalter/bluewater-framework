@@ -8,7 +8,7 @@
  * @author Walter Torres
  * @copyright Copyright 2026, Bluewater.
  * @license OSL-3.0
- * @maintainer ApiForge Team
+ * @maintainer Bluewater Team
  * @status dev
  *
  * Defines the dependency container, autowiring rules, instance cache, and not-found failure used by the framework.

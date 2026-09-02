@@ -8,7 +8,7 @@
  * @author Walter Torres
  * @copyright Copyright 2026, Bluewater.
  * @license OSL-3.0
- * @maintainer ApiForge Team
+ * @maintainer Bluewater Team
  * @status dev
  *
  * Defines the application namespace autoloader that maps application classes to files beneath a configured root.

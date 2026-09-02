@@ -8,7 +8,7 @@
  * @author Walter Torres
  * @copyright Copyright 2026, Bluewater.
  * @license OSL-3.0
- * @maintainer ApiForge Team
+ * @maintainer Bluewater Team
  * @status dev
  *
  * Adapts PSR-15 middleware to Bluewater requests while preserving downstream request and response flow.

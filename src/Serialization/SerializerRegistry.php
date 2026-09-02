@@ -8,7 +8,7 @@
  * @author Walter Torres
  * @copyright Copyright 2026, Bluewater.
  * @license OSL-3.0
- * @maintainer ApiForge Team
+ * @maintainer Bluewater Team
  * @status dev
  *
  * Selects and executes response serializers by negotiated media type with deterministic fallback behavior.
