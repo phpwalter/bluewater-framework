@@ -286,8 +286,9 @@ Application code should depend only on documented `Bluewater\...` public namespa
 
 ## 📚 Related Documents
 
-- [Application developer guide](docs/APP_DEVELOPERS.md)
-- [Core developer guide](docs/CORE_DEVELOPERS.md)
+- [Technical documentation](docs/README.md)
+- [Application usage guides](docs/usage/index.md)
+- [Core development guides](docs/development/index.md)
 - [License](LICENSE)
 
 ---
