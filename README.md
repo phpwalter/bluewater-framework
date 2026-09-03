@@ -1,4 +1,27 @@
-# Bluewater 8
+<!-- locale-guard:language-bar:start -->
+<!-- locale-guard:language-bar:end -->
+
+# Bluewater 8 – Bluewater Framework
+
+📄 **File:** `README.md`  
+📅 **Status:** Active  
+🏷️ **Tags:** framework, overview, bluewater-v8  
+🔖 **Version:** 8.0.0  
+📅 **Date:** 2026-09-03  
+🌍 **Scope:** Implemented features, design goals, and public boundaries  
+🤝 **Contributors:** Bluewater framework maintainers  
+👨‍💻 **Author:** Bluewater Framework Team
+
+---
+
+> ### 🪶 **Bluewater Principle**
+> *Convention removes repetition while explicit boundaries preserve control.*
+
+---
+
+## 📌 Purpose
+
+This document summarizes Bluewater Framework 8 as implemented on the `build/bluewater-v8` branch and directs developers to the detailed guides.
 
 Bluewater is a lightweight, convention-first PHP 8.3+ API framework designed for small-to-medium APIs that need to scale to hundreds or thousands of endpoints without making developers maintain route manifests.
 
@@ -260,3 +283,17 @@ CI runs the suite on PHP 8.3 and PHP 8.4.
 ## Public API boundary
 
 Application code should depend only on documented `Bluewater\...` public namespaces. Future implementation-only code will live under `Bluewater\Internal\...` and is not part of the semantic-versioning compatibility contract.
+
+## 📚 Related Documents
+
+- [Application developer guide](docs/APP_DEVELOPERS.md)
+- [Core developer guide](docs/CORE_DEVELOPERS.md)
+- [License](LICENSE)
+
+---
+
+This repository and its technical documentation are licensed under the [OSL-3.0 License](LICENSE).
+
+---
+
+*Last updated: 2026-09-03*

@@ -1,4 +1,27 @@
-# Bluewater Core Developer Guide
+<!-- locale-guard:language-bar:start -->
+<!-- locale-guard:language-bar:end -->
+
+# Bluewater Core Developer Guide – Bluewater Framework
+
+📄 **File:** `docs/CORE_DEVELOPERS.md`  
+📅 **Status:** Active  
+🏷️ **Tags:** technical, framework-core, contributing  
+🔖 **Version:** 8.0.0  
+📅 **Date:** 2026-09-03  
+🌍 **Scope:** Maintaining, extending, testing, and releasing Bluewater 8  
+🤝 **Contributors:** Bluewater framework maintainers  
+👨‍💻 **Author:** Bluewater Framework Team
+
+---
+
+> ### 🪶 **Bluewater Principle**
+> *Core changes preserve a small public surface and prove behavior through executable tests.*
+
+---
+
+## 📌 Purpose
+
+This guide defines repository boundaries, design rules, test expectations, compatibility requirements, and contribution workflow for Bluewater framework maintainers.
 
 This guide is for developers who maintain or extend the Bluewater framework itself.
 
@@ -463,3 +486,17 @@ merge
 ```
 
 Do not merge a framework change merely because it is syntactically valid. Core changes must preserve Bluewater's primary goals: small surface area, predictable behavior, automatic file-based endpoint discovery, high request-path efficiency, explicit extension points, and straightforward debugging.
+
+## 📚 Related Documents
+
+- [Framework overview](../README.md)
+- [Application developer guide](APP_DEVELOPERS.md)
+- [License](../LICENSE)
+
+---
+
+This repository and its technical documentation are licensed under the [OSL-3.0 License](../LICENSE).
+
+---
+
+*Last updated: 2026-09-03*

@@ -1,4 +1,27 @@
-# Bluewater Application Developer Guide
+<!-- locale-guard:language-bar:start -->
+<!-- locale-guard:language-bar:end -->
+
+# Bluewater Application Developer Guide – Bluewater Framework
+
+📄 **File:** `docs/APP_DEVELOPERS.md`  
+📅 **Status:** Active  
+🏷️ **Tags:** technical, applications, api-development  
+🔖 **Version:** 8.0.0  
+📅 **Date:** 2026-09-03  
+🌍 **Scope:** Building isolated API applications on Bluewater 8  
+🤝 **Contributors:** Bluewater framework maintainers  
+👨‍💻 **Author:** Bluewater Framework Team
+
+---
+
+> ### 🪶 **Bluewater Principle**
+> *Application code extends the framework through public contracts and never modifies installed vendor code.*
+
+---
+
+## 📌 Purpose
+
+This guide explains how application developers install Bluewater, structure an application, define endpoints, register services, apply middleware, authenticate requests, access data, and deploy through PHP-FPM.
 
 This guide is for developers building applications on top of Bluewater.
 
@@ -829,3 +852,17 @@ app/app_1/logs
 ```
 
 Prefer explicit DI bindings and extensions over framework hacks. Prefer middleware for request policy. Prefer DTOs for structured input. Prefer service/repository interfaces for business behavior. Let file convention define ordinary routes and use attributes only when they add meaningful metadata or handle exceptional routing needs.
+
+## 📚 Related Documents
+
+- [Framework overview](../README.md)
+- [Core developer guide](CORE_DEVELOPERS.md)
+- [License](../LICENSE)
+
+---
+
+This repository and its technical documentation are licensed under the [OSL-3.0 License](../LICENSE).
+
+---
+
+*Last updated: 2026-09-03*
